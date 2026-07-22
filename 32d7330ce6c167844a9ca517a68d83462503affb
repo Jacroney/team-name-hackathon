@@ -1,0 +1,37 @@
+README.md
+  s_241f075640cc16::t_426edbb8e2d8d9 1
+worker-configuration.d.ts
+  s_241f075640cc16::t_bb301bd352384f 2,9,36-40,51,65
+worker/audit.ts
+  s_241f075640cc16::t_3c8ac38e28f987 1-97
+worker/auth.ts
+  s_241f075640cc16::t_33623e75472061 79-81
+worker/briefing.ts
+  s_241f075640cc16::t_fb5b695931021c 1-143
+worker/enrichment.ts
+  s_241f075640cc16::t_0112db2c55a361 222,328,410-428
+worker/incidentStore.ts
+  s_241f075640cc16::t_deb74178526b36 2,451-464
+worker/index.ts
+  s_241f075640cc16::t_57083fc05328fc 163-187,191,197,253,255
+worker/ingest.ts
+  s_241f075640cc16::t_14d3cc14771744 60-64,67-76,126-134
+worker/metrics.ts
+  s_241f075640cc16::t_a3718685d1f8ea 30
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "32d7330ce6c167844a9ca517a68d83462503affb",
+  "prompts": {},
+  "sessions": {
+    "s_241f075640cc16": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_0750f28d2ffes9b7ZxhzHR3G45",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Joe Croney <jcroney@cloudflare.com>"
+    }
+  }
+}
