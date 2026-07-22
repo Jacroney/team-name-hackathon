@@ -1,0 +1,19 @@
+package-lock.json
+  s_00af0765726a8d::t_398490c4a67c4e 1-5531
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "93c119a13b69c1a1fde1b2e08d3c5e7fe04dbfac",
+  "prompts": {},
+  "sessions": {
+    "s_00af0765726a8d": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_0756dad7effe1aLeQhmEe2fj3a",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Joe Croney <jcroney@cloudflare.com>"
+    }
+  }
+}
