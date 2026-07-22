@@ -113,7 +113,8 @@
   },
   "kv_namespaces": [
     {
-      "binding": "CONFIG"
+      "binding": "CONFIG",
+      "id": "45baa83149784905afd2a078a5283996"
     }
   ],
   "r2_buckets": [
@@ -136,7 +137,7 @@
     {
       "binding": "AUDIT_DB",
       "database_name": "flarenet-audit",
-      "database_id": "3d704f2c-a116-4479-959d-0cfdd09033e0"
+      "database_id": "848333c4-3c40-44a0-a309-25deb4d61003"
     }
   ],
   "vectorize": [
