@@ -1,12 +1,22 @@
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
   "name": "crisis-mesh-console",
+  "main": "worker/index.ts",
   "compatibility_date": "2026-07-22",
   "compatibility_flags": ["nodejs_compat"],
   "assets": {
     "directory": "./dist",
+    "binding": "ASSETS",
     "not_found_handling": "single-page-application"
   },
+  "durable_objects": {
+    "bindings": [
+      { "name": "INCIDENT_STORE", "class_name": "IncidentStore" }
+    ]
+  },
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["IncidentStore"] }
+  ],
   "observability": {
     "enabled": true,
     "head_sampling_rate": 1
