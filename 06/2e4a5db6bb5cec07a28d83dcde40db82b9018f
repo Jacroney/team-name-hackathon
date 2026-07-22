@@ -1,0 +1,19 @@
+README.md
+  s_073b919cbf529d::t_e61577cc94b17c 1-3
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "062e4a5db6bb5cec07a28d83dcde40db82b9018f",
+  "prompts": {},
+  "sessions": {
+    "s_073b919cbf529d": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_075955aaeffeeKbndxmShu4tv8",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Joe Croney <jcroney@cloudflare.com>"
+    }
+  }
+}
