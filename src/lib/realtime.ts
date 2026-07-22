@@ -9,11 +9,7 @@ interface IncidentStreamOptions {
   onStatus: (status: RealtimeStatus) => void;
 }
 
-const WEBSOCKET_URL = import.meta.env.VITE_WEBSOCKET_URL ?? (
-  import.meta.env.PROD && !["127.0.0.1", "localhost"].includes(window.location.hostname)
-    ? `${window.location.protocol === "https:" ? "wss:" : "ws:"}//${window.location.host}/realtime`
-    : undefined
-);
+const WEBSOCKET_URL = import.meta.env.VITE_WEBSOCKET_URL;
 
 const hubEventSchema = z.object({
   type: z.enum(["incident.created", "incident.patch"]),

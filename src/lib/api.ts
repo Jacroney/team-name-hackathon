@@ -8,9 +8,7 @@ import {
 } from "./schemas";
 
 const API_URL = import.meta.env.VITE_API_URL?.replace(/\/$/, "") ?? "";
-const USE_API = Boolean(import.meta.env.VITE_API_URL) || (
-  import.meta.env.PROD && !["127.0.0.1", "localhost"].includes(window.location.hostname)
-);
+const USE_API = Boolean(import.meta.env.VITE_API_URL);
 const DEMO_OPERATOR = "A. Okafor";
 let demoStore = structuredClone(demoIncidents);
 

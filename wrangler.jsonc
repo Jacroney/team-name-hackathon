@@ -17,7 +17,12 @@
     "HAZARD_BUCKET_PREFIX": "jurisdictions",
     "TURNSTILE_HOSTNAME": "",
     "JURISDICTION_ID": "metro-central",
-    "OPERATOR_NAME": "A. Okafor"
+    "OPERATOR_NAME": "A. Okafor",
+    "ACCESS_TEAM_DOMAIN": "",
+    "ACCESS_AUD": "",
+    "EMAIL_FROM": "",
+    "SUPERVISOR_EMAIL": "",
+    "DISPATCH_WEBHOOK_URL": ""
   },
   "secrets": {
     "required": [
@@ -26,12 +31,7 @@
       "OPERATOR_API_TOKEN",
       "TURNSTILE_SECRET",
       "R2_ACCESS_KEY_ID",
-      "R2_SECRET_ACCESS_KEY",
-      "DISPATCH_WEBHOOK_URL",
-      "ACCESS_TEAM_DOMAIN",
-      "ACCESS_AUD",
-      "EMAIL_FROM",
-      "SUPERVISOR_EMAIL"
+      "R2_SECRET_ACCESS_KEY"
     ]
   },
   "assets": {
