@@ -1,0 +1,25 @@
+README.md
+  s_241f075640cc16::t_1d9da5b5a7f3d5 23,31-33
+src/lib/api.ts
+  s_241f075640cc16::t_0c29d3d1188627 11
+src/lib/realtime.ts
+  s_241f075640cc16::t_03b4869d91bda7 12
+wrangler.jsonc
+  s_241f075640cc16::t_4fb29128a604a4 20-25,34
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "2343637e5c1e8a91f73006d4ade6d062a60d8087",
+  "prompts": {},
+  "sessions": {
+    "s_241f075640cc16": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_0750f28d2ffes9b7ZxhzHR3G45",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Joe Croney <jcroney@cloudflare.com>"
+    }
+  }
+}
