@@ -10,7 +10,15 @@
     "skipLibCheck": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
-    "allowImportingTsExtensions": true
+    "allowImportingTsExtensions": true,
+    "isolatedModules": true,
+    "resolveJsonModule": true,
+    "forceConsistentCasingInFileNames": true
   },
-  "include": ["worker/**/*.ts", "worker-configuration.d.ts"]
+  "include": [
+    "worker/**/*.ts",
+    "src/lib/schemas.ts",
+    "src/lib/demoData.ts",
+    "worker-configuration.d.ts"
+  ]
 }

@@ -12,12 +12,14 @@ import { getTriageConfig } from "./config";
 import { handleEnrichmentQueue } from "./enrichment";
 import { HttpError, IncidentServiceError } from "./errors";
 import { HazardAnalysisContainer } from "./geo-container";
-import { getIncident, patchIncident, proxyIncidentRequest } from "./incidents";
+import { handleIncidentApi } from "./incident-api";
+import { IncidentStore } from "./incidentStore";
+import { getIncident, patchIncident } from "./incidents";
 import { handleSos } from "./ingest";
 import { jsonResponse, readJsonBody } from "./http";
 import { JurisdictionHub } from "./jurisdiction-hub";
 
-export { HazardAnalysisContainer, JurisdictionHub };
+export { HazardAnalysisContainer, IncidentStore, JurisdictionHub };
 
 const retriageRequestSchema = z
   .object({
@@ -97,7 +99,10 @@ async function handleRealtime(request: Request, env: Env): Promise<Response> {
 async function handleRetriage(request: Request, env: Env, incidentId: string): Promise<Response> {
   await authorizeOperator(request, env);
   const body = retriageRequestSchema.parse(await readJsonBody(request));
-  const current = await getIncident(env, incidentId);
+  if (body.jurisdictionId !== env.JURISDICTION_ID) {
+    throw new HttpError(403, "jurisdiction_forbidden", "Incident jurisdiction access denied");
+  }
+  const current = await getIncident(env, body.jurisdictionId, incidentId);
   if (current.jurisdictionId !== body.jurisdictionId) {
     throw new HttpError(404, "incident_not_found", "Incident not found");
   }
@@ -130,7 +135,7 @@ async function handleRetriage(request: Request, env: Env, incidentId: string): P
 
   const config = await getTriageConfig(env, body.jurisdictionId);
   const assessment = geospatialAssessmentSchema.safeParse(current.geospatialAssessment);
-  const location = sosLocationSchema.safeParse(current.location);
+  const location = sosLocationSchema.safeParse(current.sourceLocation);
   const message: TriageQueueMessage = triageQueueMessageSchema.parse({
     kind: "ai.triage",
     schemaVersion: 1,
@@ -169,7 +174,7 @@ async function route(request: Request, env: Env): Promise<Response> {
     return handleRetriage(request, env, decodeURIComponent(retriageMatch[1]));
   }
   if (url.pathname === "/incidents" || url.pathname.startsWith("/incidents/")) {
-    return proxyIncidentRequest(request, env);
+    return handleIncidentApi(request, env);
   }
   if (url.pathname.startsWith("/api/") || url.pathname === "/sos" || url.pathname === "/realtime") {
     throw new HttpError(404, "not_found", "Route not found");

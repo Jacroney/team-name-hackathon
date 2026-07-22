@@ -15,7 +15,9 @@
     "R2_ACCOUNT_ID": "aeee1ca52e57227a4207f9ca3f3b3a0d",
     "R2_BUCKET_NAME": "crisis-mesh-hazard-data",
     "HAZARD_BUCKET_PREFIX": "jurisdictions",
-    "TURNSTILE_HOSTNAME": ""
+    "TURNSTILE_HOSTNAME": "",
+    "JURISDICTION_ID": "metro-central",
+    "OPERATOR_NAME": "A. Okafor"
   },
   "secrets": {
     "required": [
@@ -33,13 +35,6 @@
     "not_found_handling": "single-page-application",
     "run_worker_first": true
   },
-  "services": [
-    {
-      "binding": "INCIDENTS",
-      "service": "crisis-mesh-incidents",
-      "remote": true
-    }
-  ],
   "durable_objects": {
     "bindings": [
       {
@@ -49,13 +44,17 @@
       {
         "name": "HAZARD_ANALYSIS",
         "class_name": "HazardAnalysisContainer"
+      },
+      {
+        "name": "INCIDENT_STORE",
+        "class_name": "IncidentStore"
       }
     ]
   },
   "migrations": [
     {
       "tag": "v1",
-      "new_sqlite_classes": ["JurisdictionHub", "HazardAnalysisContainer"]
+      "new_sqlite_classes": ["JurisdictionHub", "HazardAnalysisContainer", "IncidentStore"]
     }
   ],
   "containers": [

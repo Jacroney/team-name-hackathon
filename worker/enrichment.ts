@@ -169,7 +169,7 @@ export async function enqueueInitialEnrichment(
 }
 
 async function resumeGeoPipeline(env: Env, message: GeoQueueMessage): Promise<boolean> {
-  const incident = await getIncident(env, message.incidentId);
+  const incident = await getIncident(env, message.jurisdictionId, message.incidentId);
   if (incident.jurisdictionId !== message.jurisdictionId) throw new StaleIncidentError();
   if (incident.triageStatus !== "pending") return true;
   if (incident.version === message.incidentVersion) return false;
