@@ -216,7 +216,7 @@ async function processGeoMessage(message: Message, env: Env): Promise<void> {
       outcome: "invalid_message",
       pipeline: "geo",
     });
-    message.retry({ delaySeconds: retryDelaySeconds(message.attempts) });
+    message.ack();
     return;
   }
   const job = parsed.data;
@@ -310,7 +310,7 @@ async function processGeoMessage(message: Message, env: Env): Promise<void> {
         );
       }
     }
-    message.retry();
+    message.ack();
   }
 }
 
@@ -322,7 +322,7 @@ async function processTriageMessage(message: Message, env: Env): Promise<void> {
       outcome: "invalid_message",
       pipeline: "ai",
     });
-    message.retry({ delaySeconds: retryDelaySeconds(message.attempts) });
+    message.ack();
     return;
   }
   const job = parsed.data;
@@ -395,7 +395,7 @@ async function processTriageMessage(message: Message, env: Env): Promise<void> {
         );
       }
     }
-    message.retry();
+    message.ack();
   }
 }
 
@@ -403,11 +403,24 @@ export async function handleEnrichmentQueue(
   batch: MessageBatch<unknown>,
   env: Env,
 ): Promise<void> {
-  await Promise.all(
-    batch.messages.map((message) =>
-      batch.queue === env.GEO_QUEUE_NAME
-        ? processGeoMessage(message, env)
-        : processTriageMessage(message, env),
-    ),
+  await Promise.allSettled(
+    batch.messages.map(async (message) => {
+      try {
+        if (batch.queue === env.GEO_QUEUE_NAME) {
+          await processGeoMessage(message, env);
+        } else {
+          await processTriageMessage(message, env);
+        }
+      } catch {
+        // Guarantee exactly one terminal disposition: the per-message handlers
+        // always ack/retry on their own paths. If one throws unexpectedly before
+        // reaching a terminal call, retry it exactly once here.
+        try {
+          message.retry();
+        } catch {
+          // Terminal disposition was already applied; nothing more to do.
+        }
+      }
+    }),
   );
 }

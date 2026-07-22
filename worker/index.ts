@@ -156,17 +156,41 @@ async function handleRetriage(request: Request, env: Env, incidentId: string): P
     priorityPolicyVersion: config.priorityPolicyVersion,
     enqueuedAt: new Date().toISOString(),
   });
-  await env.TRIAGE_QUEUE.send(message, { contentType: "json" });
+  try {
+    await env.TRIAGE_QUEUE.send(message, { contentType: "json" });
+  } catch (error) {
+    const failurePatch: IncidentPatch = {
+      triageStatus: "failed",
+      triageFailure: { code: "triage_enqueue_failed", failedAt: new Date().toISOString() },
+    };
+    try {
+      await patchIncident({
+        env,
+        incidentId,
+        jurisdictionId: body.jurisdictionId,
+        expectedVersion: incident.version,
+        patch: failurePatch,
+        source: "manual-retriage",
+      });
+    } catch {
+      // Best-effort revert; surface the enqueue failure regardless.
+    }
+    throw new HttpError(
+      502,
+      "triage_enqueue_failed",
+      "Failed to enqueue triage request",
+    );
+  }
   return jsonResponse({ incidentId, version: incident.version, triageStatus: "pending" }, 202);
 }
 
-async function route(request: Request, env: Env): Promise<Response> {
+async function route(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
   const url = new URL(request.url);
   if (request.method === "OPTIONS") return preflight(request, env);
   if (request.method === "GET" && url.pathname === "/health") {
     return jsonResponse({ status: "ok" });
   }
-  if (request.method === "POST" && url.pathname === "/sos") return handleSos(request, env);
+  if (request.method === "POST" && url.pathname === "/sos") return handleSos(request, env, ctx);
   if (request.method === "GET" && url.pathname === "/realtime") return handleRealtime(request, env);
 
   const retriageMatch = url.pathname.match(/^\/incidents\/([^/]+)\/retriage$/);
@@ -207,9 +231,9 @@ function errorResponse(error: unknown, request: Request): Response {
 }
 
 export default {
-  async fetch(request: Request, env: Env): Promise<Response> {
+  async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     try {
-      return withCors(await route(request, env), request, env);
+      return withCors(await route(request, env, ctx), request, env);
     } catch (error) {
       return withCors(errorResponse(error, request), request, env);
     }

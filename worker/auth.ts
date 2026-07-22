@@ -35,7 +35,6 @@ async function verifyTurnstile(
   const form = new FormData();
   form.set("secret", env.TURNSTILE_SECRET);
   form.set("response", body.turnstileToken);
-  form.set("idempotency_key", body.idempotencyKey);
   const remoteIp = request.headers.get("CF-Connecting-IP");
   if (remoteIp) form.set("remoteip", remoteIp);
 
@@ -47,8 +46,9 @@ async function verifyTurnstile(
 
   const parsed = turnstileResponseSchema.safeParse(await response.json().catch(() => null));
   if (!parsed.success || !parsed.data.success) return false;
-  if (parsed.data.action && parsed.data.action !== "sos") return false;
-  return !env.TURNSTILE_HOSTNAME || parsed.data.hostname === env.TURNSTILE_HOSTNAME;
+  if (parsed.data.action !== "sos") return false;
+  if (!env.TURNSTILE_HOSTNAME) return false;
+  return parsed.data.hostname === env.TURNSTILE_HOSTNAME;
 }
 
 export async function authorizeSos(request: Request, body: SosRequest, env: Env): Promise<void> {
