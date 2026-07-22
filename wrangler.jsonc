@@ -15,7 +15,7 @@
     "R2_ACCOUNT_ID": "aeee1ca52e57227a4207f9ca3f3b3a0d",
     "R2_BUCKET_NAME": "crisis-mesh-hazard-data",
     "HAZARD_BUCKET_PREFIX": "jurisdictions",
-    "TURNSTILE_HOSTNAME": "",
+    "TURNSTILE_HOSTNAME": "crisis-mesh-console.jcroney-individual-account.workers.dev",
     "JURISDICTION_ID": "metro-central",
     "OPERATOR_NAME": "A. Okafor",
     "ACCESS_TEAM_DOMAIN": "",
@@ -178,13 +178,6 @@
       "name": "EMAIL"
     }
   ],
-  "ai_search": [
-    {
-      "binding": "SOP_SEARCH",
-      "instance_name": "crisis-mesh-sops",
-      "remote": true
-    }
-  ],
   "images": {
     "binding": "IMAGES",
     "remote": true
@@ -197,13 +190,6 @@
     "binding": "BROWSER",
     "remote": true
   },
-  "pipelines": [
-    {
-      "binding": "AUDIT_EVENTS",
-      "stream": "crisis-mesh-audit",
-      "remote": true
-    }
-  ],
   "placement": {
     "mode": "smart"
   },

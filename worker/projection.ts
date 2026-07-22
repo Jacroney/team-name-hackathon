@@ -34,15 +34,12 @@ export async function recordAudit(
     occurredAt: new Date().toISOString(),
     payload: input.payload,
   };
-  await Promise.all([
-    env.OPERATIONS_DB.prepare(
-      `INSERT INTO incident_audit (event_id, incident_id, jurisdiction_id, event_type, occurred_at, payload_json)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-    )
-      .bind(event.eventId, event.incidentId, event.jurisdictionId, event.type, event.occurredAt, JSON.stringify(event.payload))
-      .run(),
-    env.AUDIT_EVENTS.send([event]),
-  ]);
+  await env.OPERATIONS_DB.prepare(
+    `INSERT INTO incident_audit (event_id, incident_id, jurisdiction_id, event_type, occurred_at, payload_json)
+     VALUES (?, ?, ?, ?, ?, ?)`,
+  )
+    .bind(event.eventId, event.incidentId, event.jurisdictionId, event.type, event.occurredAt, JSON.stringify(event.payload))
+    .run();
 }
 
 export async function recordIncidentChange(
