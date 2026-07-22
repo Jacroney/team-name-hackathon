@@ -56,7 +56,7 @@ type PanelAction =
 
 const successLabels: Record<PanelAction["kind"], string> = {
   CLAIM: "Incident claimed. You now hold the approval lock.",
-  DISPATCH: "Dispatch acknowledged by the destination agency.",
+  DISPATCH: "Dispatch workflow started. Delivery acknowledgement is being tracked.",
   REQUEST_CLARIFICATION: "Clarification request sent to the caller session.",
   ESCALATE: "Incident escalated to the duty supervisor.",
   MARK_DUPLICATE: "Incident closed as a duplicate.",

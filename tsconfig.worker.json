@@ -10,6 +10,7 @@
     "skipLibCheck": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
+    "types": ["@cloudflare/vitest-pool-workers/types"],
     "allowImportingTsExtensions": true,
     "isolatedModules": true,
     "resolveJsonModule": true,

@@ -20,7 +20,7 @@ export function EvidenceGallery({ evidence }: { evidence: Evidence[] }) {
       ) : (
         <div className="evidence-grid">
           {evidence.map((item, index) => (
-            <button className="evidence-item" type="button" key={item.id}>
+            <a className="evidence-item" href={item.url} target={item.url ? "_blank" : undefined} rel={item.url ? "noreferrer" : undefined} key={item.id}>
               <span className="evidence-preview" data-type={item.type.toLowerCase()}>
                 <EvidenceIcon type={item.type} />
                 {item.type === "AUDIO" && (
@@ -34,7 +34,7 @@ export function EvidenceGallery({ evidence }: { evidence: Evidence[] }) {
                 <strong>{item.label}</strong>
                 <small>{item.type} {String(index + 1).padStart(2, "0")}{item.durationSeconds ? ` · ${Math.floor(item.durationSeconds / 60)}:${String(item.durationSeconds % 60).padStart(2, "0")}` : ""}</small>
               </span>
-            </button>
+            </a>
           ))}
         </div>
       )}

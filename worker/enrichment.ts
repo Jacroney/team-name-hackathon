@@ -16,6 +16,7 @@ import { runGeospatialAssessment } from "./geo-container";
 import { getIncident, patchIncident } from "./incidents";
 import { recordMetric } from "./metrics";
 import { runTriage } from "./triage";
+import { recordIncidentChange } from "./projection";
 
 function maxAttempts(value: string): number {
   const parsed = Number(value);
@@ -116,6 +117,7 @@ async function markEnrichmentFailed(
     patch,
     pipeline === "ai" ? "incident.triage_failed" : "incident.patch",
   );
+  await recordIncidentChange(env, incident, `enrichment.${pipeline}_failed`);
   return incident;
 }
 
@@ -205,6 +207,7 @@ async function completeGeoAnalysis(
     source: "geo-analysis",
   });
   await publishUpdate(env, message.jurisdictionId, message.incidentVersion, incident, patch);
+  await recordIncidentChange(env, incident, "enrichment.geo_complete");
   return incident;
 }
 
@@ -310,7 +313,7 @@ async function processGeoMessage(message: Message, env: Env): Promise<void> {
         );
       }
     }
-    message.retry();
+    message.ack();
   }
 }
 
@@ -352,6 +355,7 @@ async function processTriageMessage(message: Message, env: Env): Promise<void> {
       source: "ai-triage",
     });
     await publishUpdate(env, job.jurisdictionId, job.incidentVersion, incident, patch);
+    await recordIncidentChange(env, incident, "enrichment.triage_complete");
     recordMetric(env.METRICS, "ai.triage_latency_ms", {
       jurisdictionId: job.jurisdictionId,
       value: Date.now() - startedAt,
@@ -395,7 +399,7 @@ async function processTriageMessage(message: Message, env: Env): Promise<void> {
         );
       }
     }
-    message.retry();
+    message.ack();
   }
 }
 

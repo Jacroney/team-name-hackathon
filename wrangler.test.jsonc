@@ -1,0 +1,20 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "crisis-mesh-console-test",
+  "main": "./worker/index.ts",
+  "compatibility_date": "2026-07-22",
+  "compatibility_flags": ["nodejs_compat"],
+  "durable_objects": {
+    "bindings": [
+      { "name": "JURISDICTION_HUB", "class_name": "JurisdictionHub" },
+      { "name": "HAZARD_ANALYSIS", "class_name": "HazardAnalysisContainer" },
+      { "name": "INCIDENT_STORE", "class_name": "IncidentStore" }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["JurisdictionHub", "HazardAnalysisContainer", "IncidentStore"]
+    }
+  ]
+}

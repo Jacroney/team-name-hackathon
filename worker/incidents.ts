@@ -36,7 +36,7 @@ interface PatchIncidentOptions {
   jurisdictionId: string;
   expectedVersion: number;
   patch: IncidentPatch;
-  source: "ai-triage" | "geo-analysis" | "enrichment-failure" | "manual-retriage";
+  source: "ai-triage" | "geo-analysis" | "enrichment-failure" | "manual-retriage" | "manual-evidence";
 }
 
 export async function patchIncident({

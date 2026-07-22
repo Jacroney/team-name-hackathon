@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { createRemoteJWKSet, jwtVerify } from "jose";
 import { hubPrincipalSchema, type HubPrincipal, type SosRequest } from "./contracts";
 import { HttpError } from "./errors";
 
@@ -14,6 +15,35 @@ function bearerToken(request: Request): string | null {
   const authorization = request.headers.get("Authorization");
   if (!authorization?.startsWith("Bearer ")) return null;
   return authorization.slice("Bearer ".length).trim() || null;
+}
+
+export interface OperatorPrincipal {
+  id: string;
+  name: string;
+  role: "dispatcher";
+}
+
+async function accessPrincipal(request: Request, env: Env): Promise<OperatorPrincipal | null> {
+  if (!env.ACCESS_TEAM_DOMAIN || !env.ACCESS_AUD) {
+    const hostname = new URL(request.url).hostname;
+    if (hostname === "localhost" || hostname === "127.0.0.1") return null;
+    throw new HttpError(503, "access_not_configured", "Cloudflare Access is not configured");
+  }
+  const token = request.headers.get("cf-access-jwt-assertion");
+  if (!token) throw new HttpError(401, "access_auth_required", "Cloudflare Access authentication required");
+
+  try {
+    const { payload } = await jwtVerify(
+      token,
+      createRemoteJWKSet(new URL(`${env.ACCESS_TEAM_DOMAIN}/cdn-cgi/access/certs`)),
+      { issuer: env.ACCESS_TEAM_DOMAIN, audience: env.ACCESS_AUD },
+    );
+    if (typeof payload.sub !== "string" || !payload.sub) throw new Error("missing subject");
+    const email = typeof payload.email === "string" ? payload.email : undefined;
+    return { id: payload.sub, name: email ?? env.OPERATOR_NAME, role: "dispatcher" };
+  } catch {
+    throw new HttpError(401, "access_auth_invalid", "Cloudflare Access authentication failed");
+  }
 }
 
 async function constantTimeEqual(provided: string, expected: string): Promise<boolean> {
@@ -58,11 +88,14 @@ export async function authorizeSos(request: Request, body: SosRequest, env: Env)
   throw new HttpError(401, "intake_auth_required", "SOS intake authentication failed");
 }
 
-export async function authorizeOperator(request: Request, env: Env): Promise<void> {
+export async function authorizeOperator(request: Request, env: Env): Promise<OperatorPrincipal> {
+  const access = await accessPrincipal(request, env);
+  if (access) return access;
   const token = bearerToken(request);
   if (!token || !(await constantTimeEqual(token, env.OPERATOR_API_TOKEN))) {
     throw new HttpError(401, "operator_auth_required", "Operator authentication failed");
   }
+  return { id: env.OPERATOR_NAME, name: env.OPERATOR_NAME, role: "dispatcher" };
 }
 
 function decodeBase64Url(value: string): Uint8Array {
@@ -85,6 +118,15 @@ function websocketToken(request: Request): string | null {
 }
 
 export async function authenticateHubConnection(request: Request, env: Env): Promise<HubPrincipal> {
+  const access = await accessPrincipal(request, env);
+  if (access) {
+    return {
+      sub: access.id,
+      role: access.role,
+      jurisdictionId: env.JURISDICTION_ID,
+      exp: Math.floor(Date.now() / 1_000) + 60,
+    };
+  }
   const token = websocketToken(request);
   if (!token) throw new HttpError(401, "hub_auth_required", "Realtime authentication required");
 
