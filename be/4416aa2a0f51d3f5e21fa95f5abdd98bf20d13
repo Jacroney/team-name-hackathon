@@ -1,0 +1,21 @@
+package-lock.json
+  s_bf0c37a695b8fd::t_8cbbd5dd191359 11,25,150-155,182-210,3627-3633
+worker-configuration.d.ts
+  s_bf0c37a695b8fd::t_4f8aef0c5fcb1a 1-14742
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "be4416aa2a0f51d3f5e21fa95f5abdd98bf20d13",
+  "prompts": {},
+  "sessions": {
+    "s_bf0c37a695b8fd": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_0754c579affex0gTrqe7iZ2HGN",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Joe Croney <jcroney@cloudflare.com>"
+    }
+  }
+}
