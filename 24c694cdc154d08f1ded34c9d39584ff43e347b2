@@ -1,0 +1,19 @@
+package-lock.json
+  s_20c93e79c08c55::t_9d452100908c86 33,3611-3617,3881-3910,3921-3927,3935-3941,4007-4019,4036-4045,4465-4471,4598-4627,4644-4650,4667-4676,4819-4834,4902-4908,4947-4953,5035-5044,5306-5312
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "24c694cdc154d08f1ded34c9d39584ff43e347b2",
+  "prompts": {},
+  "sessions": {
+    "s_20c93e79c08c55": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_074f1791bffeHTnVTgL87REhPE",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Ivan Chen <ivanchen@cloudflare.com>"
+    }
+  }
+}
