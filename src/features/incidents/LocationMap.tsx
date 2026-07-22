@@ -20,7 +20,21 @@ export function LocationMap({ address, district, coordinates }: LocationMapProps
       if (disposed || !containerRef.current) return;
       map = new maplibre.Map({
         container: containerRef.current,
-        style: "https://demotiles.maplibre.org/style.json",
+        style: {
+          version: 8,
+          sources: {
+            satellite: {
+              type: "raster",
+              tiles: [
+                "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+              ],
+              tileSize: 256,
+              attribution:
+                "Imagery &copy; Esri, Maxar, Earthstar Geographics",
+            },
+          },
+          layers: [{ id: "satellite", type: "raster", source: "satellite" }],
+        },
         center: coordinates,
         zoom: 14.2,
         attributionControl: false,
