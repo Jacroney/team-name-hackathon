@@ -1,4 +1,4 @@
-# Crisis Mesh
+# FlareNet
 
 Desktop-first emergency operations console for reviewing, claiming, and dispatching live incidents.
 
