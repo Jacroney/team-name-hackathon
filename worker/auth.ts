@@ -105,6 +105,41 @@ function decodeBase64Url(value: string): Uint8Array {
   return Uint8Array.from(decoded, (character) => character.charCodeAt(0));
 }
 
+function encodeBase64Url(bytes: Uint8Array): string {
+  let binary = "";
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
+/**
+ * Mint a short-lived HMAC-signed hub token for a WebSocket connection.
+ * Mirrors the verification in authenticateHubConnection: `payload.signature`,
+ * both base64url, signed with HUB_AUTH_SECRET. Used by the /api/realtime/token
+ * endpoint so the browser can authenticate the realtime stream.
+ */
+export async function issueHubToken(
+  env: Env,
+  operator: OperatorPrincipal,
+  ttlSeconds = 300,
+): Promise<string> {
+  const principal: HubPrincipal = {
+    sub: operator.id,
+    role: "dispatcher",
+    jurisdictionId: env.JURISDICTION_ID,
+    exp: Math.floor(Date.now() / 1_000) + ttlSeconds,
+  };
+  const payloadBytes = new TextEncoder().encode(JSON.stringify(principal));
+  const key = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(env.HUB_AUTH_SECRET),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+  const signature = new Uint8Array(await crypto.subtle.sign("HMAC", key, payloadBytes));
+  return `${encodeBase64Url(payloadBytes)}.${encodeBase64Url(signature)}`;
+}
+
 function websocketToken(request: Request): string | null {
   const authorizationToken = bearerToken(request);
   if (authorizationToken) return authorizationToken;

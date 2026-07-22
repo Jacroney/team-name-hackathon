@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { authenticateHubConnection, authorizeOperator } from "./auth";
+import { authenticateHubConnection, authorizeOperator, issueHubToken } from "./auth";
 import {
   geospatialAssessmentSchema,
   jurisdictionIdSchema,
@@ -22,6 +22,7 @@ import { DispatchWorkflow } from "./dispatch-workflow";
 import { handleGuidance } from "./guidance";
 import { handleEvidenceRead, handleEvidenceUpload, handleImageUpload, handleVideoUpload } from "./media";
 import { handleIncidentReport } from "./report";
+import { demoIncidents } from "../src/lib/demoData";
 
 export { DispatchWorkflow, HazardAnalysisContainer, IncidentStore, JurisdictionHub };
 
@@ -188,13 +189,37 @@ async function handleRetriage(request: Request, env: Env, incidentId: string): P
   return jsonResponse({ incidentId, version: incident.version, triageStatus: "pending" }, 202);
 }
 
+/**
+ * DEV-ONLY: load the polished demo incident set into the IncidentStore so the
+ * console renders a full, realistic board. Disabled when ENVIRONMENT=production.
+ */
+async function handleDevSeed(env: Env): Promise<Response> {
+  const jurisdictionId = env.JURISDICTION_ID;
+  const store = env.INCIDENT_STORE.getByName(jurisdictionId);
+  await store.resetIncidents(jurisdictionId);
+  let seeded = 0;
+  for (const incident of demoIncidents) {
+    await store.seedIncident(jurisdictionId, JSON.stringify(incident));
+    seeded += 1;
+  }
+  return jsonResponse({ status: "ok", seeded, jurisdictionId });
+}
+
 async function route(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
   const url = new URL(request.url);
   if (request.method === "OPTIONS") return preflight(request, env);
   if (request.method === "GET" && url.pathname === "/health") {
     return jsonResponse({ status: "ok" });
   }
+  if (request.method === "POST" && url.pathname === "/api/dev/seed" && (env.ENVIRONMENT as string) !== "production") {
+    return handleDevSeed(env);
+  }
   if (request.method === "POST" && url.pathname === "/sos") return handleSos(request, env, ctx);
+  if (request.method === "GET" && url.pathname === "/api/realtime/token") {
+    const operator = await authorizeOperator(request, env);
+    const token = await issueHubToken(env, operator);
+    return jsonResponse({ token, protocol: `cm-auth.${token}`, jurisdictionId: env.JURISDICTION_ID });
+  }
   if (request.method === "GET" && url.pathname === "/realtime") return handleRealtime(request, env);
   if (request.method === "POST" && url.pathname === "/api/guidance") return handleGuidance(request, env);
   if (request.method === "POST" && url.pathname === "/api/media/video-upload") return handleVideoUpload(request, env);

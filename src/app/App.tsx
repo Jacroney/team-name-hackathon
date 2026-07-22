@@ -14,7 +14,7 @@ import {
 } from "../features/incidents/IncidentWorkspace";
 import { RegionMap } from "../features/incidents/RegionMap";
 import { SelectedIncidentPanel } from "../features/incidents/SelectedIncidentPanel";
-import { getIncident, listIncidents } from "../lib/api";
+import { getIncident, getRealtimeToken, listIncidents } from "../lib/api";
 import { sortIncidents } from "../lib/incidentUtils";
 import { connectIncidentStream, type RealtimeStatus } from "../lib/realtime";
 import { incidentSchema, type Incident, type RealtimeEvent } from "../lib/schemas";
@@ -102,14 +102,23 @@ export function App() {
       flashUpdated(event.incidentId);
     };
 
-    const disconnect = connectIncidentStream({
-      jurisdictionId: import.meta.env.VITE_JURISDICTION_ID ?? "metro-central",
-      onEvent: handleRealtimeEvent,
-      onStatus: setConnectionStatus,
-    });
+    let disconnect: (() => void) | undefined;
+    let cancelled = false;
+    void getRealtimeToken()
+      .catch(() => null)
+      .then((authToken) => {
+        if (cancelled) return;
+        disconnect = connectIncidentStream({
+          jurisdictionId: import.meta.env.VITE_JURISDICTION_ID ?? "metro-central",
+          onEvent: handleRealtimeEvent,
+          onStatus: setConnectionStatus,
+          authToken,
+        });
+      });
 
     return () => {
-      disconnect();
+      cancelled = true;
+      disconnect?.();
       updateTimers.current.forEach((timer) => window.clearTimeout(timer));
       updateTimers.current.clear();
     };

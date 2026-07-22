@@ -244,6 +244,44 @@ export class IncidentStore extends DurableObject<Env> {
     return incidentJson;
   }
 
+  /** DEV-ONLY: wipe all incidents (used by the demo seeding route). */
+  async resetIncidents(jurisdictionId: string): Promise<void> {
+    this.ensureJurisdiction(jurisdictionId);
+    this.ctx.storage.sql.exec("DELETE FROM incidents");
+  }
+
+  /**
+   * DEV-ONLY: insert a fully-formed incident record for demos/seeding.
+   * Upserts by incident id so re-seeding is idempotent. Not used by any
+   * production flow (guarded by a non-production route).
+   */
+  async seedIncident(jurisdictionId: string, incidentJson: string): Promise<void> {
+    this.ensureJurisdiction(jurisdictionId);
+    const incoming = JSON.parse(incidentJson) as Record<string, unknown>;
+    const incident = storedIncidentSchema.parse({
+      triageStatus: "complete",
+      geoStatus: "complete",
+      sourceLocation: null,
+      ...incoming,
+      jurisdictionId,
+    });
+    const stored = JSON.stringify(incident);
+    this.ctx.storage.sql.exec(
+      `INSERT INTO incidents
+         (incident_id, idempotency_key, version, received_at_ms, incident_json)
+       VALUES (?, ?, ?, ?, ?)
+       ON CONFLICT(incident_id) DO UPDATE SET
+         version = excluded.version,
+         received_at_ms = excluded.received_at_ms,
+         incident_json = excluded.incident_json`,
+      incident.id,
+      `seed:${incident.id}`,
+      incident.version,
+      Date.parse(incident.receivedAt),
+      stored,
+    );
+  }
+
   async listIncidentJson(jurisdictionId: string): Promise<string> {
     this.ensureJurisdiction(jurisdictionId);
     const incidents = this.ctx.storage.sql

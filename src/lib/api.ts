@@ -9,7 +9,13 @@ import {
 
 const API_URL = import.meta.env.VITE_API_URL?.replace(/\/$/, "") ?? "";
 const USE_API = Boolean(import.meta.env.VITE_API_URL);
+const OPERATOR_TOKEN = import.meta.env.VITE_OPERATOR_TOKEN;
 const DEMO_OPERATOR = "A. Okafor";
+
+// When Cloudflare Access fronts the app it injects the auth header itself; for
+// local/dev (no Access) we send the operator bearer token when configured.
+const authHeaders = (): Record<string, string> =>
+  OPERATOR_TOKEN ? { Authorization: `Bearer ${OPERATOR_TOKEN}` } : {};
 let demoStore = structuredClone(demoIncidents);
 
 const sleep = (milliseconds: number): Promise<void> =>
@@ -37,6 +43,7 @@ const request = async <T>(path: string, schema: { parse: (value: unknown) => T }
     ...init,
     headers: {
       Accept: "application/json",
+      ...authHeaders(),
       ...(init?.body ? { "Content-Type": "application/json" } : {}),
       ...init?.headers,
     },
@@ -74,6 +81,22 @@ const updateDemoIncident = async (
   });
   demoStore = demoStore.map((incident) => (incident.id === id ? next : incident));
   return structuredClone(next);
+};
+
+export const isApiEnabled = (): boolean => USE_API;
+
+/**
+ * Fetch a short-lived realtime auth token from the backend. Returns null when
+ * running against demo data (no API) so the caller can fall back gracefully.
+ */
+export const getRealtimeToken = async (): Promise<string | null> => {
+  if (!USE_API) return null;
+  const response = await fetch(`${API_URL}/api/realtime/token`, {
+    headers: { Accept: "application/json", ...authHeaders() },
+  });
+  if (!response.ok) return null;
+  const body = (await response.json().catch(() => null)) as { token?: string } | null;
+  return body?.token ?? null;
 };
 
 export const listIncidents = async (): Promise<Incident[]> => {

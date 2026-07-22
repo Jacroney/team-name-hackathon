@@ -7,6 +7,8 @@ interface IncidentStreamOptions {
   jurisdictionId: string;
   onEvent: (event: RealtimeEvent) => void;
   onStatus: (status: RealtimeStatus) => void;
+  /** Optional signed hub token; sent as a `cm-auth.<token>` subprotocol. */
+  authToken?: string | null;
 }
 
 const WEBSOCKET_URL = import.meta.env.VITE_WEBSOCKET_URL;
@@ -43,6 +45,7 @@ export const connectIncidentStream = ({
   jurisdictionId,
   onEvent,
   onStatus,
+  authToken,
 }: IncidentStreamOptions): (() => void) => {
   let stopped = false;
   let socket: WebSocket | undefined;
@@ -91,7 +94,8 @@ export const connectIncidentStream = ({
     onStatus("connecting");
     const url = new URL(WEBSOCKET_URL);
     url.searchParams.set("jurisdiction", jurisdictionId);
-    socket = new WebSocket(url, "crisis-mesh");
+    const protocols = authToken ? ["crisis-mesh", `cm-auth.${authToken}`] : "crisis-mesh";
+    socket = new WebSocket(url, protocols);
 
     socket.addEventListener("open", markMessageReceived);
     socket.addEventListener("message", (message) => {
