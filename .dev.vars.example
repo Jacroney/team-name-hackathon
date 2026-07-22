@@ -1,0 +1,6 @@
+HUB_AUTH_SECRET=replace-with-a-random-hmac-secret
+SOS_INGEST_TOKEN=replace-with-a-random-ingest-token
+OPERATOR_API_TOKEN=replace-with-a-random-operator-token
+TURNSTILE_SECRET=replace-with-your-turnstile-secret
+R2_ACCESS_KEY_ID=replace-with-a-read-only-r2-access-key
+R2_SECRET_ACCESS_KEY=replace-with-the-r2-secret-access-key

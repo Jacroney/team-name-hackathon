@@ -1,14 +1,151 @@
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
   "name": "crisis-mesh-console",
+  "main": "./worker/index.ts",
   "compatibility_date": "2026-07-22",
   "compatibility_flags": ["nodejs_compat"],
+  "vars": {
+    "ENVIRONMENT": "development",
+    "ALLOWED_ORIGINS": "http://localhost:5173",
+    "AI_GATEWAY_ID": "crisis-mesh",
+    "TRIAGE_MAX_ATTEMPTS": "4",
+    "GEO_MAX_ATTEMPTS": "4",
+    "GEO_CONTAINER_INSTANCES": "3",
+    "GEO_QUEUE_NAME": "crisis-mesh-geo",
+    "R2_ACCOUNT_ID": "aeee1ca52e57227a4207f9ca3f3b3a0d",
+    "R2_BUCKET_NAME": "crisis-mesh-hazard-data",
+    "HAZARD_BUCKET_PREFIX": "jurisdictions",
+    "TURNSTILE_HOSTNAME": ""
+  },
+  "secrets": {
+    "required": [
+      "HUB_AUTH_SECRET",
+      "SOS_INGEST_TOKEN",
+      "OPERATOR_API_TOKEN",
+      "TURNSTILE_SECRET",
+      "R2_ACCESS_KEY_ID",
+      "R2_SECRET_ACCESS_KEY"
+    ]
+  },
   "assets": {
     "directory": "./dist",
-    "not_found_handling": "single-page-application"
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": true
+  },
+  "services": [
+    {
+      "binding": "INCIDENTS",
+      "service": "crisis-mesh-incidents",
+      "remote": true
+    }
+  ],
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "JURISDICTION_HUB",
+        "class_name": "JurisdictionHub"
+      },
+      {
+        "name": "HAZARD_ANALYSIS",
+        "class_name": "HazardAnalysisContainer"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["JurisdictionHub", "HazardAnalysisContainer"]
+    }
+  ],
+  "containers": [
+    {
+      "name": "crisis-mesh-hazard-analysis",
+      "class_name": "HazardAnalysisContainer",
+      "image": "./container/Dockerfile",
+      "image_build_context": "./container",
+      "instance_type": "standard-1",
+      "max_instances": 3,
+      "ssh": { "enabled": false },
+      "rollout_step_percentage": [50, 100]
+    }
+  ],
+  "queues": {
+    "producers": [
+      {
+        "binding": "GEO_QUEUE",
+        "queue": "crisis-mesh-geo"
+      },
+      {
+        "binding": "TRIAGE_QUEUE",
+        "queue": "crisis-mesh-triage"
+      }
+    ],
+    "consumers": [
+      {
+        "queue": "crisis-mesh-geo",
+        "max_batch_size": 5,
+        "max_batch_timeout": 2,
+        "max_retries": 3,
+        "retry_delay": 5,
+        "dead_letter_queue": "crisis-mesh-geo-dlq"
+      },
+      {
+        "queue": "crisis-mesh-triage",
+        "max_batch_size": 5,
+        "max_batch_timeout": 2,
+        "max_retries": 3,
+        "retry_delay": 5,
+        "dead_letter_queue": "crisis-mesh-triage-dlq"
+      }
+    ]
+  },
+  "kv_namespaces": [
+    {
+      "binding": "CONFIG"
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "HAZARD_DATA",
+      "bucket_name": "crisis-mesh-hazard-data"
+    }
+  ],
+  "vectorize": [
+    {
+      "binding": "DUPLICATE_REPORTS",
+      "index_name": "crisis-mesh-duplicates"
+    }
+  ],
+  "ai": {
+    "binding": "AI",
+    "remote": true
+  },
+  "analytics_engine_datasets": [
+    {
+      "binding": "METRICS",
+      "dataset": "crisis_mesh_operations"
+    }
+  ],
+  "flagship": [
+    {
+      "binding": "FLAGS",
+      "app_id": "9cff6f5e-df48-4cb2-ab3d-f583a715dee7",
+      "remote": true
+    }
+  ],
+  "placement": {
+    "mode": "smart"
   },
   "observability": {
     "enabled": true,
-    "head_sampling_rate": 1
+    "logs": {
+      "enabled": true,
+      "head_sampling_rate": 1
+    },
+    "traces": {
+      "enabled": true,
+      "head_sampling_rate": 0.1
+    }
   }
 }
