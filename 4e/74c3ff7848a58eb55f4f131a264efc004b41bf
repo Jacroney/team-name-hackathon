@@ -1,0 +1,19 @@
+worker-configuration.d.ts
+  s_241f075640cc16::t_3a18ad8bca730f 2,31
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "4e74c3ff7848a58eb55f4f131a264efc004b41bf",
+  "prompts": {},
+  "sessions": {
+    "s_241f075640cc16": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_0750f28d2ffes9b7ZxhzHR3G45",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Joe Croney <jcroney@cloudflare.com>"
+    }
+  }
+}
