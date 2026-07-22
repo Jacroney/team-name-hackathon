@@ -4,6 +4,7 @@ import { authorizeOperator } from "./auth";
 import type { StoreMutationResult } from "./incidentStore";
 import { jsonResponse, readJsonBody } from "./http";
 import { readAudit } from "./audit";
+import { generateBriefing } from "./briefing";
 
 const versionRequestSchema = z.object({ expectedVersion: z.number().int().positive() }).strict();
 const dispatchRequestSchema = versionRequestSchema
@@ -55,7 +56,7 @@ export async function handleIncidentApi(request: Request, env: Env): Promise<Res
     return jsonResponse(JSON.parse(await store.listIncidentJson(jurisdictionId)));
   }
 
-  const match = url.pathname.match(/^\/incidents\/([^/]+)(?:\/(claim|dispatch|actions|audit))?$/);
+  const match = url.pathname.match(/^\/incidents\/([^/]+)(?:\/(claim|dispatch|actions|audit|briefing))?$/);
   if (!match?.[1]) return jsonResponse({ message: "Not found" }, 404);
   const incidentId = decodeURIComponent(match[1]);
   const action = match[2];
@@ -67,6 +68,11 @@ export async function handleIncidentApi(request: Request, env: Env): Promise<Res
   }
   if (request.method === "GET" && action === "audit") {
     return jsonResponse(await readAudit(env.AUDIT_DB, incidentId));
+  }
+  if (request.method === "GET" && action === "briefing") {
+    const incidentJson = await store.getIncidentJson(jurisdictionId, incidentId);
+    if (!incidentJson) return jsonResponse({ message: "Incident not found" }, 404);
+    return jsonResponse(await generateBriefing(env, incidentId, JSON.parse(incidentJson)));
   }
   if (request.method !== "POST" || !action) return jsonResponse({ message: "Not found" }, 404);
 
