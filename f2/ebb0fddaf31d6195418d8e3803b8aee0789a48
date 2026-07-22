@@ -1,0 +1,35 @@
+.gitignore
+  s_bf0c37a695b8fd::t_f114e285d79636 16-18
+tsconfig.worker.json
+  s_7823310b4a43c6::t_4ed336c8c07242 13-16,18-23
+worker-configuration.d.ts
+  s_bf0c37a695b8fd::t_60ebcc96759d07 2,25-26,35,40,49
+worker/enrichment.ts
+  s_7823310b4a43c6::t_631d97e8548f59 172
+worker/incidents.ts
+  s_7823310b4a43c6::t_61933da18e03a4 1,4-5,11-15,20-27,29-30,50-54,56-58,60
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "f2ebb0fddaf31d6195418d8e3803b8aee0789a48",
+  "prompts": {},
+  "sessions": {
+    "s_7823310b4a43c6": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_075172a8dffe0G7GlYMapilUM6",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Joe Croney <jcroney@cloudflare.com>"
+    },
+    "s_bf0c37a695b8fd": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_0754c579affex0gTrqe7iZ2HGN",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Joe Croney <jcroney@cloudflare.com>"
+    }
+  }
+}
