@@ -17,7 +17,12 @@
     "HAZARD_BUCKET_PREFIX": "jurisdictions",
     "TURNSTILE_HOSTNAME": "",
     "JURISDICTION_ID": "metro-central",
-    "OPERATOR_NAME": "A. Okafor"
+    "OPERATOR_NAME": "A. Okafor",
+    "ACCESS_TEAM_DOMAIN": "",
+    "ACCESS_AUD": "",
+    "EMAIL_FROM": "",
+    "SUPERVISOR_EMAIL": "",
+    "DISPATCH_WEBHOOK_URL": ""
   },
   "secrets": {
     "required": [
@@ -51,6 +56,13 @@
       }
     ]
   },
+  "workflows": [
+    {
+      "name": "crisis-mesh-dispatch",
+      "binding": "DISPATCH_WORKFLOW",
+      "class_name": "DispatchWorkflow"
+    }
+  ],
   "migrations": [
     {
       "tag": "v1",
@@ -108,19 +120,29 @@
     {
       "binding": "HAZARD_DATA",
       "bucket_name": "crisis-mesh-hazard-data"
+    },
+    {
+      "binding": "EVIDENCE",
+      "bucket_name": "crisis-mesh-evidence"
+    }
+  ],
+  "d1_databases": [
+    {
+      "binding": "OPERATIONS_DB",
+      "database_name": "crisis-mesh-operations",
+      "database_id": "e1ff8239-4da6-45ac-9527-b7c5cb0033e4",
+      "migrations_dir": "./migrations"
+    },
+    {
+      "binding": "AUDIT_DB",
+      "database_name": "flarenet-audit",
+      "database_id": "3d704f2c-a116-4479-959d-0cfdd09033e0"
     }
   ],
   "vectorize": [
     {
       "binding": "DUPLICATE_REPORTS",
       "index_name": "crisis-mesh-duplicates"
-    }
-  ],
-  "d1_databases": [
-    {
-      "binding": "AUDIT_DB",
-      "database_name": "flarenet-audit",
-      "database_id": "3d704f2c-a116-4479-959d-0cfdd09033e0"
     }
   ],
   "unsafe": {
@@ -147,6 +169,37 @@
     {
       "binding": "FLAGS",
       "app_id": "9cff6f5e-df48-4cb2-ab3d-f583a715dee7",
+      "remote": true
+    }
+  ],
+  "send_email": [
+    {
+      "name": "EMAIL"
+    }
+  ],
+  "ai_search": [
+    {
+      "binding": "SOP_SEARCH",
+      "instance_name": "crisis-mesh-sops",
+      "remote": true
+    }
+  ],
+  "images": {
+    "binding": "IMAGES",
+    "remote": true
+  },
+  "stream": {
+    "binding": "STREAM",
+    "remote": true
+  },
+  "browser": {
+    "binding": "BROWSER",
+    "remote": true
+  },
+  "pipelines": [
+    {
+      "binding": "AUDIT_EVENTS",
+      "stream": "crisis-mesh-audit",
       "remote": true
     }
   ],

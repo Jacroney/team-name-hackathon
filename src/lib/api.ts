@@ -7,7 +7,8 @@ import {
   type Incident,
 } from "./schemas";
 
-const API_URL = import.meta.env.VITE_API_URL?.replace(/\/$/, "");
+const API_URL = import.meta.env.VITE_API_URL?.replace(/\/$/, "") ?? "";
+const USE_API = Boolean(import.meta.env.VITE_API_URL);
 const DEMO_OPERATOR = "A. Okafor";
 let demoStore = structuredClone(demoIncidents);
 
@@ -32,8 +33,6 @@ export class ApiError extends Error {
 }
 
 const request = async <T>(path: string, schema: { parse: (value: unknown) => T }, init?: RequestInit): Promise<T> => {
-  if (!API_URL) throw new Error("API URL is not configured");
-
   const response = await fetch(`${API_URL}${path}`, {
     ...init,
     headers: {
@@ -78,20 +77,20 @@ const updateDemoIncident = async (
 };
 
 export const listIncidents = async (): Promise<Incident[]> => {
-  if (API_URL) return request("/incidents", incidentListSchema);
+  if (USE_API) return request("/api/incidents", incidentListSchema);
   await sleep(220);
   return structuredClone(demoStore);
 };
 
 export const getIncident = async (id: string): Promise<Incident> => {
-  if (API_URL) return request(`/incidents/${encodeURIComponent(id)}`, incidentSchema);
+  if (USE_API) return request(`/api/incidents/${encodeURIComponent(id)}`, incidentSchema);
   await sleep(120);
   return readDemoIncident(id);
 };
 
 export const claimIncident = async (id: string, expectedVersion: number): Promise<Incident> => {
-  if (API_URL) {
-    return request(`/incidents/${encodeURIComponent(id)}/claim`, incidentSchema, {
+  if (USE_API) {
+    return request(`/api/incidents/${encodeURIComponent(id)}/claim`, incidentSchema, {
       method: "POST",
       body: JSON.stringify({ expectedVersion }),
     });
@@ -126,8 +125,8 @@ export const dispatchIncident = async ({
   draft,
 }: DispatchIncidentInput): Promise<Incident> => {
   const parsedDraft = dispatchDraftSchema.parse(draft);
-  if (API_URL) {
-    return request(`/incidents/${encodeURIComponent(id)}/dispatch`, incidentSchema, {
+  if (USE_API) {
+    return request(`/api/incidents/${encodeURIComponent(id)}/dispatch`, incidentSchema, {
       method: "POST",
       body: JSON.stringify({ expectedVersion, incident: parsedDraft }),
     });
@@ -166,8 +165,8 @@ export const performIncidentAction = async (
   expectedVersion: number,
   action: IncidentAction,
 ): Promise<Incident> => {
-  if (API_URL) {
-    return request(`/incidents/${encodeURIComponent(id)}/actions`, incidentSchema, {
+  if (USE_API) {
+    return request(`/api/incidents/${encodeURIComponent(id)}/actions`, incidentSchema, {
       method: "POST",
       body: JSON.stringify({ expectedVersion, action }),
     });

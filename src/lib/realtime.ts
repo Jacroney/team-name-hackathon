@@ -1,4 +1,5 @@
-import { realtimeEventSchema, type RealtimeEvent } from "./schemas";
+import { z } from "zod";
+import { incidentSchema, realtimeEventSchema, type RealtimeEvent } from "./schemas";
 
 export type RealtimeStatus = "connecting" | "connected" | "stale" | "disconnected";
 
@@ -9,6 +10,34 @@ interface IncidentStreamOptions {
 }
 
 const WEBSOCKET_URL = import.meta.env.VITE_WEBSOCKET_URL;
+
+const hubEventSchema = z.object({
+  type: z.enum(["incident.created", "incident.patch"]),
+  incidentId: z.string(),
+  incidentVersion: z.number().int().positive(),
+  payload: z.object({ incident: incidentSchema }).partial().passthrough(),
+}).passthrough();
+
+function emitHubEvent(value: unknown, onEvent: (event: RealtimeEvent) => void): void {
+  if (typeof value !== "object" || value === null) return;
+  const raw = value as { type?: unknown; incidents?: unknown };
+  if (raw.type === "snapshot" && Array.isArray(raw.incidents)) {
+    for (const incident of raw.incidents) onEvent({ type: "incident.created", incident: incidentSchema.parse(incident) });
+    return;
+  }
+  const hubEvent = hubEventSchema.safeParse(value);
+  if (!hubEvent.success) return;
+  if (hubEvent.data.type === "incident.created" && hubEvent.data.payload.incident) {
+    onEvent({ type: "incident.created", incident: hubEvent.data.payload.incident });
+    return;
+  }
+  onEvent(realtimeEventSchema.parse({
+    type: "incident.patch",
+    incidentId: hubEvent.data.incidentId,
+    version: hubEvent.data.incidentVersion,
+    patch: hubEvent.data.payload.patch,
+  }));
+}
 
 export const connectIncidentStream = ({
   jurisdictionId,
@@ -62,13 +91,13 @@ export const connectIncidentStream = ({
     onStatus("connecting");
     const url = new URL(WEBSOCKET_URL);
     url.searchParams.set("jurisdiction", jurisdictionId);
-    socket = new WebSocket(url);
+    socket = new WebSocket(url, "crisis-mesh");
 
     socket.addEventListener("open", markMessageReceived);
     socket.addEventListener("message", (message) => {
       markMessageReceived();
       try {
-        onEvent(realtimeEventSchema.parse(JSON.parse(String(message.data))));
+        emitHubEvent(JSON.parse(String(message.data)), onEvent);
       } catch (error) {
         console.warn("Ignored invalid realtime event", error);
       }
@@ -85,11 +114,15 @@ export const connectIncidentStream = ({
     if (Date.now() - lastMessageAt > 15_000 && socket?.readyState === WebSocket.OPEN) onStatus("stale");
   }, 1_000);
   openSocket();
+  const heartbeatTimer = window.setInterval(() => {
+    if (socket?.readyState === WebSocket.OPEN) socket.send(JSON.stringify({ type: "heartbeat" }));
+  }, 10_000);
 
   return () => {
     stopped = true;
     socket?.close();
     if (reconnectTimer) window.clearTimeout(reconnectTimer);
     if (staleTimer) window.clearInterval(staleTimer);
+    window.clearInterval(heartbeatTimer);
   };
 };

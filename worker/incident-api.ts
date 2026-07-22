@@ -1,10 +1,12 @@
 import { z } from "zod";
 import { dispatchDraftSchema } from "../src/lib/schemas";
+import { incidentRecordSchema } from "./contracts";
 import { authorizeOperator } from "./auth";
 import type { StoreMutationResult } from "./incidentStore";
-import { jsonResponse, readJsonBody } from "./http";
 import { readAudit } from "./audit";
 import { generateBriefing } from "./briefing";
+import { jsonResponse, readJsonBody } from "./http";
+import { recordIncidentChange } from "./projection";
 
 const versionRequestSchema = z.object({ expectedVersion: z.number().int().positive() }).strict();
 const dispatchRequestSchema = versionRequestSchema
@@ -29,7 +31,7 @@ async function mutationResponse(
     );
   }
 
-  const incident = JSON.parse(result.incidentJson) as { id: string };
+  const incident = incidentRecordSchema.parse(JSON.parse(result.incidentJson));
   try {
     await env.JURISDICTION_HUB.getByName(jurisdictionId).publishIncidentUpdate(
       jurisdictionId,
@@ -43,20 +45,22 @@ async function mutationResponse(
       "incident-service",
     );
   }
+  await recordIncidentChange(env, incident, "incident.updated");
   return jsonResponse(incident);
 }
 
 export async function handleIncidentApi(request: Request, env: Env): Promise<Response> {
-  await authorizeOperator(request, env);
+  const operator = await authorizeOperator(request, env);
   const url = new URL(request.url);
   const jurisdictionId = env.JURISDICTION_ID;
   const store = env.INCIDENT_STORE.getByName(jurisdictionId);
 
-  if (request.method === "GET" && url.pathname === "/incidents") {
+  const path = url.pathname.replace(/^\/api/, "");
+  if (request.method === "GET" && path === "/incidents") {
     return jsonResponse(JSON.parse(await store.listIncidentJson(jurisdictionId)));
   }
 
-  const match = url.pathname.match(/^\/incidents\/([^/]+)(?:\/(claim|dispatch|actions|audit|briefing))?$/);
+  const match = path.match(/^\/incidents\/([^/]+)(?:\/(claim|dispatch|actions|audit|briefing))?$/);
   if (!match?.[1]) return jsonResponse({ message: "Not found" }, 404);
   const incidentId = decodeURIComponent(match[1]);
   const action = match[2];
@@ -82,22 +86,54 @@ export async function handleIncidentApi(request: Request, env: Env): Promise<Res
       env,
       jurisdictionId,
       body.expectedVersion,
-      await store.claim(jurisdictionId, incidentId, body.expectedVersion, env.OPERATOR_NAME),
+      await store.claim(jurisdictionId, incidentId, body.expectedVersion, operator.name),
     );
   }
   if (action === "dispatch") {
     const body = dispatchRequestSchema.parse(await readJsonBody(request));
+    const result = await store.dispatch(
+      jurisdictionId,
+      incidentId,
+      body.expectedVersion,
+      operator.name,
+      body.incident,
+    );
+    if (result.ok) {
+      try {
+        await env.DISPATCH_WORKFLOW.create({
+          id: `dispatch-${incidentId}-${body.expectedVersion}`,
+          params: {
+            incidentId,
+            jurisdictionId,
+            operator: operator.name,
+            destinationAgency: body.incident.destinationAgency,
+            requestedResponse: body.incident.requestedResponse,
+          },
+        });
+      } catch {
+        await env.JURISDICTION_HUB.getByName(jurisdictionId).publishIncidentUpdate(
+          jurisdictionId,
+          body.expectedVersion,
+          result.incidentJson,
+          result.patchJson,
+        );
+        const compensation = await store.cancelDispatch(jurisdictionId, incidentId, operator.name);
+        if (compensation.ok) {
+          await env.JURISDICTION_HUB.getByName(jurisdictionId).publishIncidentUpdate(
+            jurisdictionId,
+            body.expectedVersion + 1,
+            compensation.incidentJson,
+            compensation.patchJson,
+          );
+        }
+        return jsonResponse({ message: "Dispatch workflow could not start. Retry dispatch." }, 503);
+      }
+    }
     return mutationResponse(
       env,
       jurisdictionId,
       body.expectedVersion,
-      await store.dispatch(
-        jurisdictionId,
-        incidentId,
-        body.expectedVersion,
-        env.OPERATOR_NAME,
-        body.incident,
-      ),
+      result,
     );
   }
 
@@ -110,7 +146,7 @@ export async function handleIncidentApi(request: Request, env: Env): Promise<Res
       jurisdictionId,
       incidentId,
       body.expectedVersion,
-      env.OPERATOR_NAME,
+      operator.name,
       body.action,
     ),
   );

@@ -10,6 +10,7 @@ import { HttpError } from "./errors";
 import { createRawIncident } from "./incidents";
 import { jsonResponse, readJsonBody } from "./http";
 import { recordMetric } from "./metrics";
+import { recordIncidentChange } from "./projection";
 
 function canonicalSos(sos: SosRequest): string {
   return JSON.stringify({
@@ -115,6 +116,7 @@ export async function handleSos(
     JSON.stringify(rawIncident),
   );
   const completedIncident = incidentRecordSchema.parse(JSON.parse(completed.incidentJson));
+  await recordIncidentChange(env, completedIncident, "incident.created");
   recordMetric(env.METRICS, "incident.creation_latency_ms", {
     jurisdictionId: sos.jurisdictionId,
     value: Date.now() - startedAt,

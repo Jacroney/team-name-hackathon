@@ -18,8 +18,12 @@ import { getIncident, patchIncident } from "./incidents";
 import { handleSos } from "./ingest";
 import { jsonResponse, readJsonBody } from "./http";
 import { JurisdictionHub } from "./jurisdiction-hub";
+import { DispatchWorkflow } from "./dispatch-workflow";
+import { handleGuidance } from "./guidance";
+import { handleEvidenceRead, handleEvidenceUpload, handleImageUpload, handleVideoUpload } from "./media";
+import { handleIncidentReport } from "./report";
 
-export { HazardAnalysisContainer, IncidentStore, JurisdictionHub };
+export { DispatchWorkflow, HazardAnalysisContainer, IncidentStore, JurisdictionHub };
 
 const retriageRequestSchema = z
   .object({
@@ -192,12 +196,27 @@ async function route(request: Request, env: Env, ctx: ExecutionContext): Promise
   }
   if (request.method === "POST" && url.pathname === "/sos") return handleSos(request, env, ctx);
   if (request.method === "GET" && url.pathname === "/realtime") return handleRealtime(request, env);
+  if (request.method === "POST" && url.pathname === "/api/guidance") return handleGuidance(request, env);
+  if (request.method === "POST" && url.pathname === "/api/media/video-upload") return handleVideoUpload(request, env);
+  if (request.method === "POST" && url.pathname === "/api/media/image-upload") return handleImageUpload(request, env);
+  const evidenceReadMatch = url.pathname.match(/^\/api\/evidence\/(.+)$/);
+  if (request.method === "GET" && evidenceReadMatch?.[1]) {
+    return handleEvidenceRead(request, env, decodeURIComponent(evidenceReadMatch[1]));
+  }
+  const evidenceUploadMatch = url.pathname.match(/^\/api\/incidents\/([^/]+)\/evidence$/);
+  if (request.method === "POST" && evidenceUploadMatch?.[1]) {
+    return handleEvidenceUpload(request, env, decodeURIComponent(evidenceUploadMatch[1]));
+  }
+  const reportMatch = url.pathname.match(/^\/api\/incidents\/([^/]+)\/report$/);
+  if (request.method === "GET" && reportMatch?.[1]) {
+    return handleIncidentReport(request, env, decodeURIComponent(reportMatch[1]));
+  }
 
-  const retriageMatch = url.pathname.match(/^\/incidents\/([^/]+)\/retriage$/);
+  const retriageMatch = url.pathname.match(/^\/api\/incidents\/([^/]+)\/retriage$/);
   if (request.method === "POST" && retriageMatch?.[1]) {
     return handleRetriage(request, env, decodeURIComponent(retriageMatch[1]));
   }
-  if (url.pathname === "/incidents" || url.pathname.startsWith("/incidents/")) {
+  if (url.pathname === "/api/incidents" || url.pathname.startsWith("/api/incidents/")) {
     return handleIncidentApi(request, env);
   }
   if (url.pathname.startsWith("/api/") || url.pathname === "/sos" || url.pathname === "/realtime") {

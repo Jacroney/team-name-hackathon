@@ -319,15 +319,56 @@ export class IncidentStore extends DurableObject<Env> {
           destinationAgency: draft.destinationAgency,
           requestedResponse: draft.requestedResponse,
           location: { ...incident.location, address: draft.address },
-          status: "DISPATCHED",
+          status: "DISPATCHING",
           missingFields: [],
           failureReason: undefined,
           activity: appendActivity(
             incident.activity,
             operator,
-            "Approved and dispatched",
+            "Dispatch workflow started",
             `${draft.destinationAgency}: ${draft.requestedResponse}`,
           ),
+        },
+      };
+    });
+  }
+
+  async completeDispatch(
+    jurisdictionId: string,
+    id: string,
+    operator: string,
+  ): Promise<StoreMutationResult> {
+    const current = this.readIncident(id);
+    if (!current) return { ok: false, code: 404, message: "Incident not found" };
+    return this.mutate(jurisdictionId, id, current.version, (incident) => {
+      if (incident.status !== "DISPATCHING") {
+        return { error: { code: 409, message: "Dispatch is no longer awaiting delivery" } };
+      }
+      return {
+        patch: {
+          status: "DISPATCHED",
+          activity: appendActivity(incident.activity, operator, "Dispatch delivery acknowledged"),
+        },
+      };
+    });
+  }
+
+  async cancelDispatch(
+    jurisdictionId: string,
+    id: string,
+    operator: string,
+  ): Promise<StoreMutationResult> {
+    const current = this.readIncident(id);
+    if (!current) return { ok: false, code: 404, message: "Incident not found" };
+    return this.mutate(jurisdictionId, id, current.version, (incident) => {
+      if (incident.status !== "DISPATCHING") {
+        return { error: { code: 409, message: "Dispatch is no longer pending" } };
+      }
+      return {
+        patch: {
+          status: "CLAIMED",
+          failureReason: "Dispatch workflow could not start. Retry dispatch.",
+          activity: appendActivity(incident.activity, operator, "Dispatch workflow failed to start"),
         },
       };
     });
