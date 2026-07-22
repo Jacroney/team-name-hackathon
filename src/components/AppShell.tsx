@@ -53,8 +53,8 @@ export function AppShell({
       <header className="topbar">
         <div className="brand-lockup">
           <span className="brand-mark" aria-hidden="true"><RadioTower size={16} /></span>
-          <strong>Crisis Mesh</strong>
-          <span className="console-label">OPS CONSOLE</span>
+          <strong>Flare Net</strong>
+          <span className="console-label">FLOOD OPS · TRAVIS CO.</span>
         </div>
         <div className="topbar-spacer" />
         <ConnectionStatus status={connectionStatus} />

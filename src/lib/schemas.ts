@@ -80,6 +80,26 @@ export const recommendationSchema = z.object({
   rationale: z.string(),
 });
 
+// Flare Net presentation fields (optional so realtime patches + API still parse).
+export const provenanceFactSchema = z.object({
+  text: z.string(),
+  source: z.string(),
+});
+export type ProvenanceFact = z.infer<typeof provenanceFactSchema>;
+
+export const assignedResourceSchema = z.object({
+  name: z.string(),
+  eta: z.string(),
+  onSite: z.boolean().default(false),
+});
+export type AssignedResource = z.infer<typeof assignedResourceSchema>;
+
+export const proposedActionSchema = z.object({
+  text: z.string(),
+  unit: z.string(),
+});
+export type ProposedAction = z.infer<typeof proposedActionSchema>;
+
 export const incidentSchema = z.object({
   id: z.string(),
   version: z.number().int().positive(),
@@ -106,6 +126,14 @@ export const incidentSchema = z.object({
   activity: z.array(activitySchema),
   recommendation: recommendationSchema,
   failureReason: z.string().optional(),
+  // Flare Net presentation fields.
+  title: z.string().optional(),
+  facts: z.array(provenanceFactSchema).optional(),
+  assignedResources: z.array(assignedResourceSchema).optional(),
+  proposedAction: proposedActionSchema.optional(),
+  missingInfo: z.string().optional(),
+  floodRadiusMeters: z.number().nonnegative().optional(),
+  detailLabel: z.string().optional(),
 });
 export type Incident = z.infer<typeof incidentSchema>;
 

@@ -1,4 +1,6 @@
+import { Button } from "@cloudflare/kumo/components/button";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { ArrowLeftIcon } from "@phosphor-icons/react";
 import { WifiOff } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
@@ -10,6 +12,8 @@ import {
   WorkspaceEmpty,
   WorkspaceLoading,
 } from "../features/incidents/IncidentWorkspace";
+import { RegionMap } from "../features/incidents/RegionMap";
+import { SelectedIncidentPanel } from "../features/incidents/SelectedIncidentPanel";
 import { getIncident, listIncidents } from "../lib/api";
 import { sortIncidents } from "../lib/incidentUtils";
 import { connectIncidentStream, type RealtimeStatus } from "../lib/realtime";
@@ -29,7 +33,12 @@ export function App() {
   const queryClient = useQueryClient();
   const [connectionStatus, setConnectionStatus] = useState<RealtimeStatus>("connecting");
   const [updatedIds, setUpdatedIds] = useState<Set<string>>(() => new Set());
+  const [mapSelectedId, setMapSelectedId] = useState<string>();
   const updateTimers = useRef(new Map<string, number>());
+
+  // A report is open when the route targets a specific incident; otherwise we show the map.
+  const reportOpen = Boolean(incidentId);
+  const selectedId = incidentId ?? mapSelectedId;
 
   const incidentsQuery = useQuery({
     queryKey: ["incidents"],
@@ -48,12 +57,9 @@ export function App() {
   });
 
   useEffect(() => {
-    if (incidentId || !incidentsQuery.data?.length) return;
-    if (!window.matchMedia("(max-width: 800px)").matches) {
-      const first = sortIncidents(incidentsQuery.data)[0];
-      void navigate(`/incidents/${first.id}`, { replace: true });
-    }
-  }, [incidentId, incidentsQuery.data, navigate]);
+    if (mapSelectedId || incidentId || !incidentsQuery.data?.length) return;
+    setMapSelectedId(sortIncidents(incidentsQuery.data)[0].id);
+  }, [mapSelectedId, incidentId, incidentsQuery.data]);
 
   useEffect(() => {
     const flashUpdated = (id: string): void => {
@@ -111,46 +117,82 @@ export function App() {
 
   const incidents = incidentsQuery.data ?? [];
   const incident = detailQuery.data;
+  const selectedIncident = incidents.find((item) => item.id === selectedId);
   const activeCount = incidents.filter((item) => item.status !== "CLOSED").length;
   const feedWarning = connectionStatus === "stale" || connectionStatus === "disconnected";
 
-  const workspace = incidentId ? (
-    detailQuery.isLoading ? <WorkspaceLoading /> : detailQuery.isError || !incident ? (
-      <WorkspaceEmpty onRetry={() => void detailQuery.refetch()} />
-    ) : (
-      <>
-        {feedWarning && (
-          <div className="feed-warning" role="alert">
-            <WifiOff size={15} />
-            {connectionStatus === "stale"
-              ? "Live updates are stale. Verify incident version before acting."
-              : "Live connection lost. Reconnecting; API actions remain version-checked."}
-          </div>
-        )}
-        <IncidentWorkspace incident={incident} />
-      </>
-    )
-  ) : <WorkspaceEmpty />;
+  const openReport = (id: string): void => {
+    setMapSelectedId(id);
+    void navigate(`/incidents/${id}`);
+  };
+  const backToMap = (): void => {
+    if (incidentId) setMapSelectedId(incidentId);
+    void navigate("/incidents");
+  };
+  const handleQueueSelect = (id: string): void => {
+    if (reportOpen) void navigate(`/incidents/${id}`);
+    else setMapSelectedId(id);
+  };
+
+  const reportBody = detailQuery.isLoading ? (
+    <WorkspaceLoading />
+  ) : detailQuery.isError || !incident ? (
+    <WorkspaceEmpty onRetry={() => void detailQuery.refetch()} />
+  ) : (
+    <>
+      <div className="report-toolbar">
+        <Button variant="ghost" size="sm" icon={ArrowLeftIcon} onClick={backToMap}>
+          Back to map
+        </Button>
+      </div>
+      {feedWarning && (
+        <div className="feed-warning" role="alert">
+          <WifiOff size={15} />
+          {connectionStatus === "stale"
+            ? "Live updates are stale. Verify incident version before acting."
+            : "Live connection lost. Reconnecting; API actions remain version-checked."}
+        </div>
+      )}
+      <IncidentWorkspace incident={incident} />
+    </>
+  );
+
+  const workspace = reportOpen ? (
+    reportBody
+  ) : (
+    <RegionMap
+      incidents={incidents}
+      selectedId={selectedId}
+      onSelect={setMapSelectedId}
+      onOpenReport={openReport}
+    />
+  );
+
+  const decision = reportOpen ? (
+    incident ? <DispatchPanel incident={incident} /> : <WorkspaceEmpty />
+  ) : (
+    <SelectedIncidentPanel incident={selectedIncident} onOpenReport={openReport} />
+  );
 
   return (
     <AppShell
-      selected={Boolean(incidentId)}
+      selected={reportOpen}
       activeCount={activeCount}
       connectionStatus={connectionStatus}
       onMobileBack={() => void navigate("/incidents")}
       queue={
         <IncidentQueue
           incidents={incidents}
-          selectedId={incidentId}
+          selectedId={selectedId}
           updatedIds={updatedIds}
           loading={incidentsQuery.isLoading}
           error={incidentsQuery.error instanceof Error ? incidentsQuery.error.message : undefined}
-          onSelect={(id) => void navigate(`/incidents/${id}`)}
+          onSelect={handleQueueSelect}
           onRetry={() => void incidentsQuery.refetch()}
         />
       }
       workspace={workspace}
-      decision={incident ? <DispatchPanel incident={incident} /> : <WorkspaceEmpty />}
+      decision={decision}
     />
   );
 }

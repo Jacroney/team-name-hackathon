@@ -9,9 +9,9 @@ describe("incident queue ordering", () => {
     expect(sorted.slice(0, 3).map((incident) => incident.priority)).toEqual([
       "CRITICAL",
       "CRITICAL",
-      "CRITICAL",
+      "URGENT",
     ]);
-    expect(sorted[0].id).toBe("CM-0722-0017");
+    expect(sorted[0].id).toBe("FN-2048");
     expect(sorted.at(-1)?.priority).toBe("ROUTINE");
   });
 

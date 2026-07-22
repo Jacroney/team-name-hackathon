@@ -1,48 +1,75 @@
-import { incidentListSchema, type Incident } from "./schemas";
+import {
+  incidentListSchema,
+  type AssignedResource,
+  type Incident,
+  type ProvenanceFact,
+} from "./schemas";
 
 const now = Date.now();
 const isoMinutesAgo = (minutes: number, secondsOffset = 0): string =>
   new Date(now - minutes * 60_000 + secondsOffset * 1_000).toISOString();
 
-interface IncidentSeed {
+interface FloodSeed {
   id: string;
   priority: Incident["priority"];
   category: Incident["category"];
+  status?: Incident["status"];
   minutesAgo: number;
+  dispatchedMinutesAgo?: number;
+  title: string;
   address: string;
   district: string;
-  coordinates: [number, number];
+  /** [lat, lng] as read from the map mockup; converted to [lng, lat] for the schema. */
+  latLng: [number, number];
   summary: string;
   channel: Incident["channel"];
   callerConnection: Incident["callerConnection"];
+  caller: string;
   peopleCount?: number | null;
   injuries?: string;
   hazards?: string[];
+  accessibilityNeeds?: string[];
+  missingInfo?: string;
   missingFields?: string[];
-  status?: Incident["status"];
-  claimedBy?: string | null;
-  destinationAgency?: string;
-  requestedResponse?: string;
+  destinationAgency: string;
+  requestedResponse: string;
+  rationale: string;
+  facts: ProvenanceFact[];
+  resources: AssignedResource[];
+  proposedAction: { text: string; unit: string };
+  auditExtra?: { minutesAgo: number; actor: string; action: string; detail?: string }[];
+  floodRadiusMeters?: number;
+  detailLabel: string;
   failureReason?: string;
 }
 
-const makeIncident = (seed: IncidentSeed): Incident => {
+const makeFloodIncident = (seed: FloodSeed): Incident => {
   const receivedAt = isoMinutesAgo(seed.minutesAgo);
-  const transcript = [
+  const dispatchedAt = isoMinutesAgo(seed.dispatchedMinutesAgo ?? Math.max(seed.minutesAgo - 2, 0));
+  const [lat, lng] = seed.latLng;
+
+  const activity = [
     {
-      id: `${seed.id}-t1`,
-      speaker: "CALLER" as const,
-      original: seed.summary,
-      timestamp: isoMinutesAgo(seed.minutesAgo, 4),
-      factIds: ["summary"],
+      id: `${seed.id}-a1`,
+      timestamp: receivedAt,
+      actor: "Flare Net",
+      action: "Incident intake logged",
+      detail: `${seed.channel.toLowerCase()} report routed as ${seed.priority.toLowerCase()}`,
     },
     {
-      id: `${seed.id}-t2`,
-      speaker: "AI" as const,
-      original: `I have your location as ${seed.address}. Is that correct?`,
-      timestamp: isoMinutesAgo(seed.minutesAgo, 10),
-      factIds: ["address"],
+      id: `${seed.id}-a2`,
+      timestamp: dispatchedAt,
+      actor: "Coordination AI",
+      action: "Recommendation generated",
+      detail: seed.proposedAction.unit,
     },
+    ...(seed.auditExtra ?? []).map((entry, index) => ({
+      id: `${seed.id}-ax${index}`,
+      timestamp: isoMinutesAgo(entry.minutesAgo),
+      actor: entry.actor,
+      action: entry.action,
+      detail: entry.detail,
+    })),
   ];
 
   return {
@@ -52,410 +79,341 @@ const makeIncident = (seed: IncidentSeed): Incident => {
     priority: seed.priority,
     status: seed.status ?? "NEEDS_REVIEW",
     summary: seed.summary,
+    title: seed.title,
     location: {
       address: seed.address,
       district: seed.district,
-      coordinates: seed.coordinates,
+      coordinates: [lng, lat],
     },
     channel: seed.channel,
     callerConnection: seed.callerConnection,
     peopleCount: seed.peopleCount ?? null,
     injuries: seed.injuries ?? "Not reported",
     hazards: seed.hazards ?? [],
-    accessibilityNeeds: [],
-    destinationAgency: seed.destinationAgency ?? "Metro Emergency Communications",
-    requestedResponse: seed.requestedResponse ?? "Assess and dispatch appropriate unit",
-    missingFields: seed.missingFields ?? [],
-    claimedBy: seed.claimedBy ?? null,
-    viewers: seed.claimedBy ? [seed.claimedBy] : [],
+    accessibilityNeeds: seed.accessibilityNeeds ?? [],
+    destinationAgency: seed.destinationAgency,
+    requestedResponse: seed.requestedResponse,
+    missingFields: seed.missingFields ?? (seed.missingInfo ? [seed.missingInfo] : []),
+    missingInfo: seed.missingInfo,
+    claimedBy: null,
+    viewers: [],
     receivedAt,
-    updatedAt: isoMinutesAgo(Math.max(seed.minutesAgo - 1, 0)),
-    transcript,
-    evidence: [],
-    activity: [
+    updatedAt: dispatchedAt,
+    transcript: [
       {
-        id: `${seed.id}-a1`,
-        timestamp: receivedAt,
-        actor: "Crisis Mesh",
-        action: "Incident created",
-        detail: `${seed.channel.toLowerCase()} intake opened`,
+        id: `${seed.id}-t1`,
+        speaker: "AI" as const,
+        original: "Flare Net emergency line. You've reached flash-flood dispatch for Travis County. Tell me what's happening and where.",
+        timestamp: isoMinutesAgo(seed.minutesAgo, 2),
+        factIds: [],
       },
       {
-        id: `${seed.id}-a2`,
+        id: `${seed.id}-t2`,
+        speaker: "CALLER" as const,
+        original: seed.summary,
+        timestamp: isoMinutesAgo(seed.minutesAgo, 6),
+        factIds: ["summary", "hazards"],
+      },
+      {
+        id: `${seed.id}-t3`,
+        speaker: "AI" as const,
+        original: `I have your location as ${seed.address} in ${seed.district}. Is that correct, and how many people are with you right now?`,
         timestamp: isoMinutesAgo(seed.minutesAgo, 12),
-        actor: "Triage AI",
-        action: "Initial extraction complete",
+        factIds: ["address", "peopleCount"],
+      },
+      {
+        id: `${seed.id}-t4`,
+        speaker: "CALLER" as const,
+        original:
+          seed.peopleCount != null
+            ? `Yes, that's right. There ${seed.peopleCount === 1 ? "is one person" : `are ${seed.peopleCount} of us`}. ${seed.injuries && seed.injuries !== "Not reported" ? seed.injuries + "." : "No injuries so far."}`
+            : "Yes, that's the location. I'm not sure exactly how many people are involved yet.",
+        timestamp: isoMinutesAgo(seed.minutesAgo, 20),
+        factIds: ["peopleCount", "injuries"],
+      },
+      {
+        id: `${seed.id}-t5`,
+        speaker: "AI" as const,
+        original:
+          (seed.hazards?.length
+            ? `Understood. Be aware of ${seed.hazards.join(" and ").toLowerCase()}. `
+            : "") +
+          "Stay on high ground away from moving water and keep this line open — a unit is being coordinated now.",
+        timestamp: isoMinutesAgo(seed.minutesAgo, 28),
+        factIds: ["hazards"],
       },
     ],
+    evidence: [],
+    activity,
     recommendation: {
-      agency: seed.destinationAgency ?? "Metro Emergency Communications",
-      units: seed.category === "MEDICAL" ? ["ALS Ambulance", "Engine"] : ["Nearest response unit"],
-      etaMinutes: seed.priority === "CRITICAL" ? 4 : seed.priority === "URGENT" ? 7 : 12,
-      rationale: "Closest available resources matched to reported incident type and hazards.",
+      agency: seed.destinationAgency,
+      units: seed.resources.map((resource) => resource.name),
+      etaMinutes: Number.parseInt(seed.resources[0]?.eta.replace(/\D/g, "") || "6", 10) || 6,
+      rationale: seed.rationale,
     },
+    facts: seed.facts,
+    assignedResources: seed.resources,
+    proposedAction: seed.proposedAction,
+    floodRadiusMeters: seed.floodRadiusMeters ?? 650,
+    detailLabel: seed.detailLabel,
     failureReason: seed.failureReason,
   };
 };
 
-const primary = makeIncident({
-  id: "CM-0722-0017",
-  priority: "CRITICAL",
-  category: "FIRE",
-  minutesAgo: 18,
-  address: "1428 W 21st St, Building C, Apt 4B",
-  district: "Central / Sector 12",
-  coordinates: [-87.6638, 41.8547],
-  summary:
-    "Smoke is filling a fourth-floor apartment after an electrical panel sparked. Three people are inside; one uses a wheelchair and one has smoke inhalation symptoms.",
-  channel: "PHONE",
-  callerConnection: "CONNECTED",
-  peopleCount: 3,
-  injuries: "1 adult coughing and dizzy from smoke exposure",
-  hazards: ["Active electrical fire", "Heavy smoke", "Fourth-floor access"],
-  missingFields: ["Sprinkler activation unknown"],
-  status: "NEEDS_REVIEW",
-  destinationAgency: "Chicago Fire Department",
-  requestedResponse: "Structure fire response with EMS and accessible evacuation support",
-});
-
-primary.version = 7;
-primary.accessibilityNeeds = ["Wheelchair evacuation assistance"];
-primary.viewers = ["M. Chen", "R. Singh"];
-primary.transcript = [
-  {
-    id: "CM-0722-0017-t1",
-    speaker: "AI",
-    original: "911 emergency. Tell me what is happening.",
-    timestamp: isoMinutesAgo(18, 2),
-    factIds: [],
-  },
-  {
-    id: "CM-0722-0017-t2",
-    speaker: "CALLER",
-    original: "Hay humo por todas partes. El panel eléctrico explotó en la pared.",
-    translated: "There is smoke everywhere. The electrical panel exploded in the wall.",
-    language: "Spanish",
-    timestamp: isoMinutesAgo(18, 7),
-    factIds: ["summary", "hazards", "category"],
-  },
-  {
-    id: "CM-0722-0017-t3",
-    speaker: "AI",
-    original: "How many people are inside, and is anyone hurt?",
-    timestamp: isoMinutesAgo(18, 14),
-    factIds: [],
-  },
-  {
-    id: "CM-0722-0017-t4",
-    speaker: "CALLER",
-    original: "Somos tres. Mi padre está tosiendo y mareado. Mi hermana usa silla de ruedas.",
-    translated: "There are three of us. My father is coughing and dizzy. My sister uses a wheelchair.",
-    language: "Spanish",
-    timestamp: isoMinutesAgo(18, 21),
-    factIds: ["peopleCount", "injuries", "accessibilityNeeds"],
-  },
-  {
-    id: "CM-0722-0017-t5",
-    speaker: "AI",
-    original: "Confirm your address and apartment number.",
-    timestamp: isoMinutesAgo(18, 29),
-    factIds: [],
-  },
-  {
-    id: "CM-0722-0017-t6",
-    speaker: "CALLER",
-    original: "1428 West 21st, edificio C, apartamento 4B. Estamos en el cuarto piso.",
-    translated: "1428 West 21st, Building C, apartment 4B. We are on the fourth floor.",
-    language: "Spanish",
-    timestamp: isoMinutesAgo(18, 34),
-    factIds: ["address", "hazards"],
-  },
-  {
-    id: "CM-0722-0017-t7",
-    speaker: "AI",
-    original: "Move away from the panel, stay low, and go to the balcony if the hallway is blocked. Help is being prepared.",
-    timestamp: isoMinutesAgo(17, 45),
-    factIds: [],
-  },
-];
-primary.evidence = [
-  {
-    id: "CM-0722-0017-e1",
-    type: "PHOTO",
-    label: "Electrical panel and smoke",
-    timestamp: isoMinutesAgo(15),
-  },
-  {
-    id: "CM-0722-0017-e2",
-    type: "AUDIO",
-    label: "Caller recording",
-    timestamp: isoMinutesAgo(18),
-    durationSeconds: 126,
-  },
-  {
-    id: "CM-0722-0017-e3",
-    type: "PHOTO",
-    label: "Hallway visibility",
-    timestamp: isoMinutesAgo(14),
-  },
-];
-primary.activity = [
-  {
-    id: "CM-0722-0017-a1",
-    timestamp: isoMinutesAgo(18),
-    actor: "Crisis Mesh",
-    action: "Voice call connected",
-    detail: "Automatic language detection: Spanish (98%)",
-  },
-  {
-    id: "CM-0722-0017-a2",
-    timestamp: isoMinutesAgo(17, 30),
-    actor: "Triage AI",
-    action: "Priority raised to critical",
-    detail: "Fire, smoke exposure, and mobility constraint detected",
-  },
-  {
-    id: "CM-0722-0017-a3",
-    timestamp: isoMinutesAgo(15),
-    actor: "Caller",
-    action: "Evidence uploaded",
-    detail: "3 items received",
-  },
-  {
-    id: "CM-0722-0017-a4",
-    timestamp: isoMinutesAgo(3),
-    actor: "M. Chen",
-    action: "Opened incident",
-  },
-];
-primary.recommendation = {
-  agency: "Chicago Fire Department",
-  units: ["2 Engines", "1 Truck", "ALS Ambulance", "Accessible transport"],
-  etaMinutes: 4,
-  rationale: "Reported structure fire with smoke injury and a mobility-assisted evacuation on floor four.",
-};
-
 export const demoIncidents = incidentListSchema.parse([
-  primary,
-  makeIncident({
-    id: "CM-0722-0024",
-    priority: "CRITICAL",
-    category: "MEDICAL",
-    minutesAgo: 11,
-    address: "55 E Monroe St, Lobby",
-    district: "Central / Sector 03",
-    coordinates: [-87.6253, 41.8807],
-    summary: "Adult collapsed in an office lobby, not responding normally; bystander has started CPR.",
-    channel: "PHONE",
-    callerConnection: "CONNECTED",
-    peopleCount: 1,
-    injuries: "Unresponsive; abnormal breathing",
-    hazards: [],
-    missingFields: ["AED status"],
-    status: "CLAIMED",
-    claimedBy: "D. Alvarez",
-    destinationAgency: "Chicago Fire Department EMS",
-    requestedResponse: "Cardiac arrest response",
-  }),
-  makeIncident({
-    id: "CM-0722-0031",
+  makeFloodIncident({
+    id: "FN-2048",
     priority: "CRITICAL",
     category: "RESCUE",
-    minutesAgo: 6,
-    address: "I-90 EB at Exit 51H",
-    district: "Highway / Sector 07",
-    coordinates: [-87.6544, 41.8886],
-    summary: "Multi-vehicle crash with one person trapped and fuel leaking from a pickup truck.",
-    channel: "WEB",
-    callerConnection: "CONNECTED",
-    peopleCount: 4,
-    injuries: "At least 2 injured; severity unclear",
-    hazards: ["Fuel leak", "Live traffic"],
-    missingFields: ["Exact vehicle count"],
-    status: "INTAKE",
-    destinationAgency: "Chicago Fire Department",
-    requestedResponse: "Extrication, EMS, and traffic control",
-  }),
-  makeIncident({
-    id: "CM-0722-0044",
-    priority: "URGENT",
-    category: "HAZMAT",
-    minutesAgo: 23,
-    address: "810 N Ashland Ave",
-    district: "West / Sector 09",
-    coordinates: [-87.6678, 41.8967],
-    summary: "Strong natural gas odor reported in a six-unit residential building basement.",
-    channel: "PHONE",
-    callerConnection: "UNSTABLE",
-    peopleCount: null,
-    hazards: ["Possible gas leak"],
-    missingFields: ["Occupant count", "Evacuation status"],
-    destinationAgency: "Chicago Fire Department",
-  }),
-  makeIncident({
-    id: "CM-0722-0052",
-    priority: "URGENT",
-    category: "POLICE",
-    minutesAgo: 19,
-    address: "Humboldt Park, Boat House",
-    district: "West / Sector 14",
-    coordinates: [-87.7012, 41.9058],
-    summary: "Parent cannot locate a seven-year-old last seen near the boat house ten minutes ago.",
-    channel: "SMS",
-    callerConnection: "CONNECTED",
-    peopleCount: 1,
-    missingFields: ["Child clothing description"],
-    claimedBy: "S. Brooks",
-    status: "CLAIMED",
-    destinationAgency: "Chicago Police Department",
-    requestedResponse: "Missing child search",
-  }),
-  makeIncident({
-    id: "CM-0722-0061",
-    priority: "URGENT",
-    category: "MEDICAL",
-    minutesAgo: 14,
-    address: "233 S Wacker Dr, Floor 18",
-    district: "Central / Sector 01",
-    coordinates: [-87.6359, 41.8789],
-    summary: "Older adult fell down four stairs and reports severe hip pain; conscious and alert.",
-    channel: "WEB",
-    callerConnection: "ENDED",
-    peopleCount: 1,
-    injuries: "Possible hip fracture",
-    missingFields: ["Blood thinner use"],
-    destinationAgency: "Chicago Fire Department EMS",
-  }),
-  makeIncident({
-    id: "CM-0722-0068",
-    priority: "URGENT",
-    category: "RESCUE",
-    minutesAgo: 12,
-    address: "Lower Wacker Dr at Columbus",
-    district: "Central / Sector 04",
-    coordinates: [-87.6204, 41.8871],
-    summary: "Sedan stalled in rising water; two occupants remain inside and water is above the tires.",
-    channel: "PHONE",
-    callerConnection: "DISCONNECTED",
-    peopleCount: 2,
-    hazards: ["Rising water", "Limited access"],
-    missingFields: ["Water current"],
-    destinationAgency: "Chicago Fire Department",
-    requestedResponse: "Water rescue response",
-  }),
-  makeIncident({
-    id: "CM-0722-0074",
-    priority: "URGENT",
-    category: "POLICE",
-    minutesAgo: 9,
-    address: "3900 S Michigan Ave, Unit 2",
-    district: "South / Sector 22",
-    coordinates: [-87.6231, 41.8232],
-    summary: "Neighbor reports shouting and breaking glass next door; possible domestic disturbance.",
-    channel: "SMS",
-    callerConnection: "CONNECTED",
-    hazards: ["Unknown weapons"],
-    missingFields: ["People involved", "Weapon confirmation"],
-    destinationAgency: "Chicago Police Department",
-    requestedResponse: "Priority welfare and safety check",
-  }),
-  makeIncident({
-    id: "CM-0722-0080",
-    priority: "URGENT",
-    category: "MEDICAL",
+    status: "NEEDS_REVIEW",
     minutesAgo: 8,
-    address: "1060 W Addison St, Gate 3",
-    district: "North / Sector 05",
-    coordinates: [-87.6555, 41.9474],
-    summary: "Teen with known peanut allergy has facial swelling after eating; epinephrine given once.",
+    dispatchedMinutesAgo: 6,
+    title: "Vehicle swept off FM 969",
+    address: "FM 969 near Blake Manor Rd",
+    district: "Travis County / Walnut Creek",
+    latLng: [30.328, -97.548],
+    summary:
+      "A passing motorist reported a dark four-door sedan washed off the FM 969 low-water crossing near Blake Manor Rd by fast-moving floodwaters. The driver climbed out and is now stranded on the vehicle roof as the current pushes the car against the downstream guardrail. The USGS gauge on Walnut Creek shows water 2.2 ft above flood stage and rising roughly 0.8 ft per hour, so the window for a safe shore-based rescue is closing. Traffic-cam imagery confirms the vehicle position and a single visible occupant.",
     channel: "PHONE",
     callerConnection: "CONNECTED",
+    caller: "J. Martinez",
     peopleCount: 1,
-    injuries: "Facial swelling and difficulty swallowing",
-    missingFields: ["Second epinephrine dose available"],
-    destinationAgency: "Chicago Fire Department EMS",
-    requestedResponse: "Advanced life support ambulance",
+    injuries: "No injuries reported; occupant stranded on vehicle roof, exposed to cold water and current",
+    hazards: ["Fast-moving floodwater", "Submerged roadway", "Rising creek level", "Vehicle unstable against guardrail"],
+    missingInfo:
+      "Occupant headcount is unconfirmed: the initial 911 caller reports only one driver, but a second motorist reported a possible front-seat passenger. Swiftwater team has been notified to plan for two.",
+    missingFields: ["Occupant headcount unconfirmed"],
+    destinationAgency: "Travis County Swiftwater Rescue",
+    requestedResponse: "Swiftwater rescue with heavy engine support",
+    rationale:
+      "Life-safety P1: an exposed occupant in active floodwater with a rising gauge trend is the highest-priority profile in the current event. Recommended dispatch is Swiftwater Rescue Unit 4 (closest boat-capable team, staged at Station 7) with Heavy Engine 12 from Station 22 for shore anchoring and lighting. Primary approach is FM 969 westbound, but that segment is inundated, so the optimizer routes both units via HWY 71 to the north bank — approximately 90 seconds longer but on passable roadway. Recommend staging EMS at the HWY 71 / FM 969 junction in case the occupant is hypothermic on extraction.",
+    facts: [
+      { text: "Dark colored sedan swept into Walnut Creek at the FM 969 crossing.", source: "911 CALL + TRAFFIC CAM" },
+      { text: "One adult occupant observed on the roof of the vehicle.", source: "911 CALLER" },
+      { text: "Water depth at gauge 14.2 ft (flood stage 12.0 ft, rising 0.8 ft/hr).", source: "USGS GAUGE #08158000" },
+    ],
+    resources: [
+      { name: "Swiftwater Rescue 4", eta: "ETA 4m", onSite: false },
+      { name: "Engine 12 (Station 22)", eta: "ETA 6m", onSite: false },
+    ],
+    proposedAction: {
+      text: "Dispatch Swiftwater Rescue Team — Station 7 (En Route: ETA 4 min)",
+      unit: "STATION 7 SWIFTWATER UNIT",
+    },
+    floodRadiusMeters: 900,
+    detailLabel: "Walnut Creek Area Detail",
   }),
-  makeIncident({
-    id: "CM-0722-0091",
+  makeFloodIncident({
+    id: "FN-2049",
     priority: "URGENT",
     category: "RESCUE",
-    minutesAgo: 4,
-    address: "401 N State St, Elevator 4",
-    district: "Central / Sector 02",
-    coordinates: [-87.6277, 41.8892],
-    summary: "Five people trapped in a stalled elevator; one reports chest tightness and panic symptoms.",
-    channel: "WEB",
+    minutesAgo: 5,
+    title: "Family trapped on 2nd floor",
+    address: "904 River Road, Austin",
+    district: "Travis County / River Road",
+    latLng: [30.311, -97.56],
+    summary:
+      "A resident at 904 River Road reports a family of four — two adults and two children — sheltering on the second floor as ground-level water rises inside the home. Water is now roughly 3 ft deep on the ground floor per the caller and a nearby street sensor, and household power has failed. No injuries are reported, but the caller is anxious and the children are young. The structure is single-access off River Road, which is partially inundated, so a wheeled approach may not reach the door.",
+    channel: "PHONE",
     callerConnection: "CONNECTED",
-    peopleCount: 5,
-    injuries: "One person with chest tightness",
-    missingFields: ["Elevator floor position"],
-    status: "FAILED",
-    destinationAgency: "Chicago Fire Department",
-    requestedResponse: "Elevator rescue and EMS assessment",
-    failureReason: "CAD gateway rejected unit code R-ELV-02.",
+    caller: "K. Nguyen",
+    peopleCount: 4,
+    injuries: "No injuries reported; two young children among the four occupants",
+    hazards: ["Rising ground-floor water", "Power outage", "Single flooded access road"],
+    accessibilityNeeds: ["Mobility status of occupants unconfirmed"],
+    missingInfo:
+      "Mobility status of the occupants is unconfirmed — dispatcher should verify whether anyone cannot self-evacuate before the boat team commits to an approach. Awaiting a callback from the resident.",
+    missingFields: ["Occupant mobility status"],
+    destinationAgency: "Austin Fire Department",
+    requestedResponse: "Engine with boat support and ambulance staging",
+    rationale:
+      "P2 rescue with sheltered, uninjured occupants: no immediate water contact, so this ranks just below the exposed-in-water P1 calls. Recommended dispatch is Engine 3 carrying its inflatable boat plus Ambulance 1 for post-extraction assessment of the children. River Road is inundated at the low point, so the optimizer stages the units via Riverside Dr and approaches from the higher north side of the block. Recommend the boat crew confirm occupant mobility on arrival before choosing a window-versus-door extraction, given two small children.",
+    facts: [
+      { text: "Four occupants confirmed on the second floor.", source: "911 CALLER" },
+      { text: "Ground floor flooded ~3 ft and rising.", source: "CALLER + SENSOR" },
+    ],
+    resources: [
+      { name: "Engine 3", eta: "ETA 7m", onSite: false },
+      { name: "Ambulance 1", eta: "ETA 9m", onSite: false },
+    ],
+    proposedAction: {
+      text: "Dispatch Engine 3 + Ambulance 1 — River Road (Staging)",
+      unit: "STATION 3 ENGINE",
+    },
+    floodRadiusMeters: 650,
+    detailLabel: "River Road Area Detail",
   }),
-  makeIncident({
-    id: "CM-0722-0102",
-    priority: "ROUTINE",
-    category: "WELFARE",
-    minutesAgo: 31,
-    address: "1840 N Milwaukee Ave, Apt 3A",
-    district: "Northwest / Sector 11",
-    coordinates: [-87.6851, 41.9149],
-    summary: "Building manager requests a welfare check after newspapers accumulated for four days.",
-    channel: "WEB",
-    callerConnection: "ENDED",
-    missingFields: ["Resident emergency contact"],
-    destinationAgency: "Chicago Police Department",
-    requestedResponse: "Welfare check",
-  }),
-  makeIncident({
-    id: "CM-0722-0110",
-    priority: "ROUTINE",
+  makeFloodIncident({
+    id: "FN-2047",
+    priority: "URGENT",
     category: "OTHER",
     minutesAgo: 17,
-    address: "N Damen Ave at W Leland Ave",
-    district: "North / Sector 08",
-    coordinates: [-87.6791, 41.9668],
-    summary: "Large tree limb is blocking one traffic lane; no vehicles or power lines are involved.",
+    title: "Road blocked by debris / flooding",
+    address: "Gilbert Rd / FM 973",
+    district: "Travis County / FM 973",
+    latLng: [30.345, -97.531],
+    summary:
+      "A roadway flood sensor at the Gilbert Rd / FM 973 intersection tripped its high-water threshold and a public web report corroborates standing water and washed-in debris across all lanes. No persons or stranded vehicles are currently reported at the crossing, so this is an access-and-prevention task rather than a rescue. Left unmanaged, however, the crossing is a likely site for a future low-water-crossing entrapment as traffic diverts from other closed roads.",
     channel: "WEB",
     callerConnection: "ENDED",
+    caller: "Automated sensor",
     peopleCount: 0,
-    missingFields: [],
-    destinationAgency: "Chicago Department of Streets and Sanitation",
-    requestedResponse: "Remove roadway obstruction",
+    injuries: "Not reported",
+    hazards: ["Standing water", "Roadway debris", "Potential future entrapment site"],
+    missingInfo:
+      "Extent of the debris field is unverified from sensor data alone; it cannot be confirmed until Road Unit R-22 arrives and inspects the crossing.",
+    missingFields: ["Debris field extent"],
+    destinationAgency: "Travis County Road & Bridge",
+    requestedResponse: "Route closure and debris clearance",
+    rationale:
+      "P2 infrastructure task with no life safety in play, prioritized for prevention. Recommended dispatch is Road & Bridge maintenance unit R-22 to physically close and sign the FM 973 crossing and clear removable debris. Recommend posting a detour advisory to the public alerting layer so navigation apps steer traffic away, reducing the chance this becomes a swiftwater rescue. No EMS or fire resources are committed, keeping them available for the active P1 calls.",
+    facts: [
+      { text: "Standing water and debris across the intersection.", source: "SENSOR + PUBLIC" },
+      { text: "No vehicles currently stranded.", source: "PATROL" },
+    ],
+    resources: [{ name: "Road Unit R-22", eta: "ETA 12m", onSite: false }],
+    proposedAction: { text: "Dispatch Road Unit R-22 — FM 973 Closure", unit: "ROAD UNIT R-22" },
+    floodRadiusMeters: 520,
+    detailLabel: "FM 973 Crossing Detail",
   }),
-  makeIncident({
-    id: "CM-0722-0119",
-    priority: "ROUTINE",
-    category: "FIRE",
-    minutesAgo: 10,
-    address: "2700 W North Ave, Rear Alley",
-    district: "West / Sector 10",
-    coordinates: [-87.6949, 41.9102],
-    summary: "Intermittent sparks heard from a utility transformer; no smoke or outage reported.",
+  makeFloodIncident({
+    id: "FN-2052",
+    priority: "CRITICAL",
+    category: "RESCUE",
+    minutesAgo: 3,
+    title: "Low-water crossing submerged, car stalled",
+    address: "Onion Creek @ US-183",
+    district: "Travis County / Onion Creek",
+    latLng: [30.19, -97.7],
+    summary:
+      "A driver stalled attempting the Onion Creek low-water crossing at US-183 and is still inside the vehicle with floodwater entering the cabin at door-sill level. The occupant is conscious, on the phone with dispatch, and reports the car shifting slightly in the current. The USGS Onion Creek gauge shows high current velocity, making self-evacuation on foot dangerous. This is a life-safety P1 that will escalate quickly if the vehicle is swept off the crossing.",
     channel: "PHONE",
     callerConnection: "CONNECTED",
-    hazards: ["Electrical equipment"],
-    missingFields: ["Utility pole number"],
-    destinationAgency: "ComEd Emergency Services",
-    requestedResponse: "Electrical equipment inspection",
-  }),
-  makeIncident({
-    id: "CM-0722-0126",
-    priority: "ROUTINE",
-    category: "MEDICAL",
-    minutesAgo: 3,
-    address: "500 W Madison St, Concourse",
-    district: "Central / Sector 01",
-    coordinates: [-87.6406, 41.8816],
-    summary: "Traveler left temperature-controlled medication on a commuter train and needs assistance.",
-    channel: "SMS",
-    callerConnection: "CONNECTED",
+    caller: "D. Reyes",
     peopleCount: 1,
-    missingFields: ["Medication name", "Time sensitivity"],
-    destinationAgency: "Metra Police",
-    requestedResponse: "Locate medication and advise caller",
+    injuries: "No injuries reported; water entering vehicle cabin, occupant advised to stay put",
+    hazards: ["High current velocity", "Submerged low-water crossing", "Vehicle shifting in current"],
+    missingInfo:
+      "A possible second occupant is unconfirmed — the caller's audio was briefly unclear. Swiftwater 2 should stage for two until confirmed on scene.",
+    missingFields: ["Second occupant unconfirmed"],
+    destinationAgency: "Travis County Swiftwater Rescue",
+    requestedResponse: "Swiftwater rescue, strong current advisory",
+    rationale:
+      "Life-safety P1: occupant in a vehicle taking on water in high current is time-critical. Recommended dispatch is Swiftwater Rescue 2, the nearest boat-capable unit to the Onion Creek corridor. Strong-current advisory issued: recommend the team approach and anchor from the north bank where the shoulder is above water and the eddy line offers a safer launch. Advise the caller to stay belted inside the vehicle unless it begins to submerge, as on-foot egress into this current has a high drowning risk.",
+    facts: [
+      { text: "Vehicle stalled mid-crossing, water at door level.", source: "911 CALLER" },
+      { text: "Current velocity high per gauge.", source: "USGS GAUGE" },
+    ],
+    resources: [{ name: "Swiftwater Rescue 2", eta: "ETA 6m", onSite: false }],
+    proposedAction: {
+      text: "Dispatch Swiftwater Rescue 2 — Onion Creek (ETA 6 min)",
+      unit: "STATION 2 SWIFTWATER UNIT",
+    },
+    floodRadiusMeters: 700,
+    detailLabel: "Onion Creek Crossing Detail",
+  }),
+  makeFloodIncident({
+    id: "FN-2051",
+    priority: "URGENT",
+    category: "RESCUE",
+    minutesAgo: 11,
+    title: "Stranded hikers on greenbelt",
+    address: "Walnut Creek Metro Park",
+    district: "Travis County / Walnut Creek Park",
+    latLng: [30.398, -97.668],
+    summary:
+      "A park ranger reports two adult hikers stranded on the far bank of a normally-ankle-deep creek crossing on the Walnut Creek greenbelt, now running fast and waist-deep after upstream rainfall. Both are uninjured, on dry ground, and sheltering in place, so the risk is elevated but not immediate. The rising creek has cut off the direct trailhead, so a rescue will need an alternate approach on foot.",
+    channel: "PHONE",
+    callerConnection: "CONNECTED",
+    caller: "Park ranger",
+    peopleCount: 2,
+    injuries: "No injuries reported; both hikers on dry ground and sheltering in place",
+    hazards: ["Rising creek crossing", "Cut-off trailhead", "Fading daylight"],
+    missingInfo:
+      "The exact trail-marker location of the hikers is still being confirmed with the ranger so R-14 can pick the shortest passable approach.",
+    missingFields: ["Trail marker location"],
+    destinationAgency: "Travis County Trail Rescue",
+    requestedResponse: "Trail rescue team to greenbelt crossing",
+    rationale:
+      "P2 rescue: subjects are stable and out of the water, so this sits below the in-water P1 calls but should not wait long given rising water and daylight. Recommended dispatch is Trail Rescue R-14, equipped for foot-access greenbelt terrain. Because the primary trailhead is cut off, recommend R-14 stage at the Metro Park north lot and approach via the upper ridge trail. Confirm the hikers' trail marker before the team commits so they don't have to backtrack across the flooded crossing.",
+    facts: [
+      { text: "Two hikers on the far bank of a flooded crossing.", source: "RANGER" },
+      { text: "No injuries reported.", source: "RANGER" },
+    ],
+    resources: [{ name: "Trail Rescue R-14", eta: "ETA 15m", onSite: false }],
+    proposedAction: { text: "Dispatch Trail Rescue R-14 — Greenbelt (ETA 15 min)", unit: "TRAIL RESCUE R-14" },
+    floodRadiusMeters: 480,
+    detailLabel: "Greenbelt Crossing Detail",
+  }),
+  makeFloodIncident({
+    id: "FN-2040",
+    priority: "ROUTINE",
+    category: "WELFARE",
+    status: "CLOSED",
+    minutesAgo: 66,
+    dispatchedMinutesAgo: 62,
+    title: "Evacuation complete",
+    address: "Del Valle High School Shelter",
+    district: "Travis County / Del Valle",
+    latLng: [30.352, -97.575],
+    summary:
+      "The precautionary evacuation of the low-lying River Road neighborhood to the Del Valle High School shelter is complete. All 32 registered residents are accounted for against the intake manifest, and the shelter is fully operational with cots, water, and a nurse on site. This incident is resolved and retained on the board for situational awareness; it is no longer consuming active response resources.",
+    channel: "WEB",
+    callerConnection: "ENDED",
+    caller: "Shelter coordinator",
+    peopleCount: 32,
+    injuries: "None reported; one resident on oxygen relocated with equipment",
+    hazards: [],
+    missingInfo: "None outstanding.",
+    missingFields: [],
+    destinationAgency: "Travis County Emergency Management",
+    requestedResponse: "Shelter operations and monitoring",
+    rationale:
+      "Resolved — monitoring only. All occupants are safe and accounted for and the shelter is at roughly 60% capacity with adequate supplies, so no further dispatch is required. Recommend keeping the incident visible for the remainder of the event in case rising water forces a second wave of arrivals, at which point it would be re-escalated. Bus B-10 and Shelter Team S-2 remain on site.",
+    facts: [
+      { text: "32 residents transported and accounted for.", source: "SHELTER LOG" },
+      { text: "Shelter at 60% capacity, supplies adequate.", source: "COORDINATOR" },
+    ],
+    resources: [
+      { name: "Bus B-10", eta: "ON SITE", onSite: true },
+      { name: "Shelter Team S-2", eta: "ON SITE", onSite: true },
+    ],
+    proposedAction: { text: "Incident resolved — monitoring only", unit: "SHELTER TEAM S-2" },
+    floodRadiusMeters: 400,
+    detailLabel: "Del Valle Shelter Detail",
+  }),
+  makeFloodIncident({
+    id: "FN-2045",
+    priority: "ROUTINE",
+    category: "OTHER",
+    status: "CLOSED",
+    minutesAgo: 120,
+    dispatchedMinutesAgo: 115,
+    title: "Power restored, area cleared",
+    address: "Manor Rd substation",
+    district: "Travis County / Manor",
+    latLng: [30.29, -97.47],
+    summary:
+      "Floodwater around the Manor Rd substation has receded and Austin Energy restored power to the affected grid segment, bringing roughly 1,200 customers back online. The field crew has inspected and cleared the site with no equipment damage found. The incident is resolved; it remains on the board only so dispatchers can watch for a re-flood if upstream water returns.",
+    channel: "WEB",
+    callerConnection: "ENDED",
+    caller: "Utility ops",
+    peopleCount: 0,
+    injuries: "None reported",
+    hazards: [],
+    missingInfo: "None outstanding.",
+    missingFields: [],
+    destinationAgency: "Austin Energy",
+    requestedResponse: "Restore power and monitor for re-flood risk",
+    rationale:
+      "Resolved — monitoring only. Power is restored and the site is cleared, so no further action is required. Recommend Austin Energy keep Utility Unit U-5 on standby in the area for the duration of the event given the re-flood risk if Walnut Creek crests again; the incident would be re-escalated automatically if the substation sensor re-trips.",
+    facts: [
+      { text: "Power restored to 1,200 customers.", source: "UTILITY OPS" },
+      { text: "Water fully receded at the substation.", source: "FIELD CREW" },
+    ],
+    resources: [{ name: "Utility Unit U-5", eta: "CLEARED", onSite: true }],
+    proposedAction: { text: "Incident resolved — monitoring only", unit: "UTILITY UNIT U-5" },
+    floodRadiusMeters: 350,
+    detailLabel: "Manor Rd Substation Detail",
   }),
 ]);

@@ -17,9 +17,9 @@ describe("IncidentQueue", () => {
     );
 
     expect(screen.getAllByText("Critical", { selector: ".priority-badge" })[0]).toBeInTheDocument();
-    expect(screen.getByText(/Missing: Sprinkler activation unknown/)).toBeInTheDocument();
-    fireEvent.click(screen.getByText("CM-0722-0017"));
-    expect(onSelect).toHaveBeenCalledWith("CM-0722-0017");
+    expect(screen.getByText(/Missing: Occupant headcount unconfirmed/)).toBeInTheDocument();
+    fireEvent.click(screen.getByText("FN-2048"));
+    expect(onSelect).toHaveBeenCalledWith("FN-2048");
   });
 
   it("filters by written severity", () => {
@@ -33,8 +33,8 @@ describe("IncidentQueue", () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: /Routine 4/ }));
-    expect(screen.queryByText("CM-0722-0017")).not.toBeInTheDocument();
-    expect(screen.getByText("CM-0722-0102")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Routine 2/ }));
+    expect(screen.queryByText("FN-2048")).not.toBeInTheDocument();
+    expect(screen.getByText("FN-2045")).toBeInTheDocument();
   });
 });
