@@ -17,6 +17,22 @@
   "migrations": [
     { "tag": "v1", "new_sqlite_classes": ["IncidentStore"] }
   ],
+  "kv_namespaces": [
+    { "binding": "CONFIG", "id": "2ed4a3be1e99460db881ee6ddd0679fa" }
+  ],
+  "d1_databases": [
+    {
+      "binding": "AUDIT_DB",
+      "database_name": "flarenet-audit",
+      "database_id": "3d704f2c-a116-4479-959d-0cfdd09033e0"
+    }
+  ],
+  "r2_buckets": [
+    { "binding": "EVIDENCE", "bucket_name": "flarenet-evidence" }
+  ],
+  "analytics_engine_datasets": [
+    { "binding": "METRICS", "dataset": "flarenet_events" }
+  ],
   "observability": {
     "enabled": true,
     "head_sampling_rate": 1

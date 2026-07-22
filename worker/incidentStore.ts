@@ -3,9 +3,12 @@ import {
   incidentSchema,
   type Activity,
   type DispatchDraft,
+  type Evidence,
   type Incident,
 } from "../src/lib/schemas";
 import { demoIncidents } from "../src/lib/demoData";
+import type { Env } from "./env";
+import { recordMetric, writeAudit } from "./dataLayer";
 
 /**
  * Backend 1 — Incident Store + REST API (system of record).
@@ -15,10 +18,10 @@ import { demoIncidents } from "../src/lib/demoData";
  * and enforces optimistic concurrency: a mutation with a stale expectedVersion
  * returns a 409 (surfaced to the client as VersionConflictError).
  *
- * SEAM FOR BACKEND 2: every successful mutation calls `notifyRealtime(...)`.
- * BE2 wires that to the jurisdiction WebSocket hub so the console gets live
- * `incident.created` / `incident.patch` events. It is a no-op until the
- * REALTIME_HUB binding exists, so BE1 works standalone.
+ * Every successful mutation fans out to the BE1 data layer:
+ *   - D1 (AUDIT_DB): immutable audit trail
+ *   - Analytics Engine (METRICS): one datapoint per mutation
+ * and calls notifyRealtime(), the seam Backend 2 wires to the WebSocket hub.
  */
 
 const OPERATOR = "Console Operator";
@@ -33,19 +36,12 @@ export type IncidentAction =
   | "MARK_DUPLICATE"
   | "RETRY_DISPATCH";
 
-interface StoreEnv {
-  // Optional cross-DO hook implemented by Backend 2. Left loose on purpose.
-  REALTIME_HUB?: {
-    getByName(name: string): { publish(event: unknown): Promise<void> };
-  };
-}
-
-export class IncidentStore extends DurableObject<StoreEnv> {
+export class IncidentStore extends DurableObject<Env> {
   private incidents = new Map<string, Incident>();
   private jurisdiction = "metro-central";
   private readonly ready: Promise<void>;
 
-  constructor(ctx: DurableObjectState, env: StoreEnv) {
+  constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
     this.ready = ctx.blockConcurrencyWhile(async () => {
       const stored = await ctx.storage.get<Incident[]>("incidents");
@@ -76,12 +72,11 @@ export class IncidentStore extends DurableObject<StoreEnv> {
   }
 
   async claim(id: string, expectedVersion: number): Promise<MutationResult> {
-    return this.mutate(id, expectedVersion, (incident) => ({
+    return this.mutate(id, expectedVersion, "Claimed incident", undefined, (incident) => ({
       ...incident,
       status: "CLAIMED",
       claimedBy: OPERATOR,
       viewers: Array.from(new Set([...incident.viewers, OPERATOR])),
-      activity: appendActivity(incident.activity, "Claimed incident"),
     }));
   }
 
@@ -90,27 +85,28 @@ export class IncidentStore extends DurableObject<StoreEnv> {
     expectedVersion: number,
     draft: DispatchDraft,
   ): Promise<MutationResult> {
-    return this.mutate(id, expectedVersion, (incident) => ({
-      ...incident,
-      category: draft.category,
-      priority: draft.priority,
-      peopleCount: draft.peopleCount,
-      injuries: draft.injuries,
-      hazards: draft.hazards,
-      accessibilityNeeds: draft.accessibilityNeeds,
-      destinationAgency: draft.destinationAgency,
-      requestedResponse: draft.requestedResponse,
-      location: { ...incident.location, address: draft.address },
-      status: "DISPATCHED",
-      claimedBy: incident.claimedBy ?? OPERATOR,
-      missingFields: [],
-      failureReason: undefined,
-      activity: appendActivity(
-        incident.activity,
-        "Approved and dispatched",
-        `${draft.destinationAgency}: ${draft.requestedResponse}`,
-      ),
-    }));
+    return this.mutate(
+      id,
+      expectedVersion,
+      "Approved and dispatched",
+      `${draft.destinationAgency}: ${draft.requestedResponse}`,
+      (incident) => ({
+        ...incident,
+        category: draft.category,
+        priority: draft.priority,
+        peopleCount: draft.peopleCount,
+        injuries: draft.injuries,
+        hazards: draft.hazards,
+        accessibilityNeeds: draft.accessibilityNeeds,
+        destinationAgency: draft.destinationAgency,
+        requestedResponse: draft.requestedResponse,
+        location: { ...incident.location, address: draft.address },
+        status: "DISPATCHED",
+        claimedBy: incident.claimedBy ?? OPERATOR,
+        missingFields: [],
+        failureReason: undefined,
+      }),
+    );
   }
 
   async performAction(
@@ -125,7 +121,7 @@ export class IncidentStore extends DurableObject<StoreEnv> {
       RETRY_DISPATCH: "Dispatch retried successfully",
     };
 
-    return this.mutate(id, expectedVersion, (incident) => ({
+    return this.mutate(id, expectedVersion, labels[action], undefined, (incident) => ({
       ...incident,
       status:
         action === "MARK_DUPLICATE"
@@ -135,27 +131,29 @@ export class IncidentStore extends DurableObject<StoreEnv> {
             : incident.status,
       priority: action === "ESCALATE" ? "CRITICAL" : incident.priority,
       failureReason: action === "RETRY_DISPATCH" ? undefined : incident.failureReason,
-      activity: appendActivity(incident.activity, labels[action]),
     }));
   }
 
-  /**
-   * SEAM FOR BACKEND 2: injects an incident from the (simulated) SOS ingest
-   * pipeline. Returns the stored, version-1 incident and fires a realtime
-   * `incident.created` event.
-   */
-  async createIncident(incident: Incident): Promise<Incident> {
-    await this.ready;
-    const stored = incidentSchema.parse({ ...incident, version: 1 });
-    this.incidents.set(stored.id, stored);
-    await this.persist();
-    await this.notifyRealtime({ type: "incident.created", incident: stored });
-    return stored;
+  /** Attach an uploaded evidence artifact (stored in R2) to the incident record. */
+  async attachEvidence(
+    id: string,
+    expectedVersion: number,
+    evidence: Evidence,
+  ): Promise<MutationResult> {
+    return this.mutate(
+      id,
+      expectedVersion,
+      "Attached evidence",
+      evidence.label,
+      (incident) => ({ ...incident, evidence: [...incident.evidence, evidence] }),
+    );
   }
 
   private async mutate(
     id: string,
     expectedVersion: number,
+    action: string,
+    detail: string | undefined,
     update: (incident: Incident) => Incident,
   ): Promise<MutationResult> {
     await this.ready;
@@ -174,15 +172,40 @@ export class IncidentStore extends DurableObject<StoreEnv> {
       ...update(current),
       version: current.version + 1,
       updatedAt: new Date().toISOString(),
+      activity: [
+        ...current.activity,
+        {
+          id: crypto.randomUUID(),
+          timestamp: new Date().toISOString(),
+          actor: OPERATOR,
+          action,
+          ...(detail ? { detail } : {}),
+        } satisfies Activity,
+      ],
     });
     this.incidents.set(id, next);
     await this.persist();
+
+    // BE1 durable side-effects (best-effort, never block the mutation).
+    const auditRow = {
+      incidentId: next.id,
+      version: next.version,
+      actor: OPERATOR,
+      action,
+      detail,
+      category: next.category,
+      priority: next.priority,
+      status: next.status,
+    };
+    await writeAudit(this.env, auditRow);
+    recordMetric(this.env, auditRow);
     await this.notifyRealtime({
       type: "incident.patch",
       incidentId: next.id,
       version: next.version,
       patch: next,
     });
+
     return { ok: true, incident: next };
   }
 
@@ -190,27 +213,8 @@ export class IncidentStore extends DurableObject<StoreEnv> {
     await this.ctx.storage.put("incidents", [...this.incidents.values()]);
   }
 
-  private async notifyRealtime(event: unknown): Promise<void> {
-    try {
-      const hub = this.env.REALTIME_HUB?.getByName(this.jurisdiction);
-      if (hub) await hub.publish(event);
-    } catch (error) {
-      console.warn("Realtime notify skipped", error);
-    }
+  /** SEAM FOR BACKEND 2: wire to the jurisdiction WebSocket hub. No-op today. */
+  private async notifyRealtime(_event: unknown): Promise<void> {
+    // Backend 2 implements: env.REALTIME_HUB.getByName(this.jurisdiction).publish(_event)
   }
 }
-
-const appendActivity = (
-  activity: Activity[],
-  action: string,
-  detail?: string,
-): Activity[] => [
-  ...activity,
-  {
-    id: crypto.randomUUID(),
-    timestamp: new Date().toISOString(),
-    actor: OPERATOR,
-    action,
-    ...(detail ? { detail } : {}),
-  },
-];
