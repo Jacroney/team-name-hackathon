@@ -56,9 +56,23 @@ async function waitForConcurrentIngest(
   return null;
 }
 
-export async function handleSos(request: Request, env: Env): Promise<Response> {
+export async function handleSos(
+  request: Request,
+  env: Env,
+  ctx: ExecutionContext,
+): Promise<Response> {
   const startedAt = Date.now();
   const sos = sosRequestSchema.parse(await readJsonBody(request));
+
+  const limiter = (env as unknown as {
+    SOS_RATE_LIMIT?: { limit(o: { key: string }): Promise<{ success: boolean }> };
+  }).SOS_RATE_LIMIT;
+  if (limiter) {
+    const ip = request.headers.get("CF-Connecting-IP") ?? "anon";
+    const { success } = await limiter.limit({ key: `${sos.jurisdictionId}:${ip}` });
+    if (!success) throw new HttpError(429, "rate_limited", "Too many SOS requests");
+  }
+
   await authorizeSos(request, sos, env);
   recordMetric(env.METRICS, "sos.requests_received", {
     jurisdictionId: sos.jurisdictionId,
@@ -107,10 +121,14 @@ export async function handleSos(request: Request, env: Env): Promise<Response> {
     pipeline: "ingest",
   });
 
-  try {
-    await enqueueInitialEnrichment(env, completedIncident, sos);
-  } catch {
-    await hub.publishSystemDegraded(sos.jurisdictionId, "queue");
-  }
+  ctx.waitUntil(
+    (async () => {
+      try {
+        await enqueueInitialEnrichment(env, completedIncident, sos);
+      } catch {
+        await hub.publishSystemDegraded(sos.jurisdictionId, "queue");
+      }
+    })(),
+  );
   return intakeResponse(completedIncident, completed.deduplicated);
 }

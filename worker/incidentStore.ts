@@ -1,4 +1,5 @@
 import { DurableObject } from "cloudflare:workers";
+import { writeAudit } from "./audit";
 import {
   incidentSchema,
   type Activity,
@@ -406,6 +407,20 @@ export class IncidentStore extends DurableObject<Env> {
       id,
       expectedVersion,
     );
+
+    // Best-effort immutable audit trail. writeAudit never throws.
+    const lastActivity = Array.isArray(stored.activity)
+      ? stored.activity[stored.activity.length - 1]
+      : undefined;
+    await writeAudit(this.env.AUDIT_DB, {
+      incidentId: id,
+      version: stored.version,
+      actor: lastActivity?.actor ?? "system",
+      action: lastActivity?.action ?? "mutation",
+      detail: lastActivity?.detail,
+      jurisdictionId,
+    });
+
     return {
       ok: true,
       incidentJson,

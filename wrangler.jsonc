@@ -116,6 +116,23 @@
       "index_name": "crisis-mesh-duplicates"
     }
   ],
+  "d1_databases": [
+    {
+      "binding": "AUDIT_DB",
+      "database_name": "flarenet-audit",
+      "database_id": "3d704f2c-a116-4479-959d-0cfdd09033e0"
+    }
+  ],
+  "unsafe": {
+    "bindings": [
+      {
+        "name": "SOS_RATE_LIMIT",
+        "type": "ratelimit",
+        "namespace_id": "1001",
+        "simple": { "limit": 60, "period": 60 }
+      }
+    ]
+  },
   "ai": {
     "binding": "AI",
     "remote": true

@@ -27,6 +27,6 @@ export function recordMetric(
   dataset.writeDataPoint({
     indexes: [jurisdictionId],
     blobs: [name, outcome, pipeline],
-    doubles: [value, Date.now()],
+    doubles: [value],
   });
 }
