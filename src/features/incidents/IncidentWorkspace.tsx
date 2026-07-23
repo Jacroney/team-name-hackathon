@@ -1,4 +1,4 @@
-import { AlertOctagon, Check, CircleDot, Radio, RefreshCw, Users } from "lucide-react";
+import { WarningOctagon, Check, Circle, Broadcast, ArrowsClockwise, Users } from "@phosphor-icons/react";
 import { useEffect, useState } from "react";
 import { PriorityBadge } from "../../components/PriorityBadge";
 import { formatIncidentStatus } from "../../lib/incidentUtils";
@@ -31,7 +31,7 @@ const FactButton = ({ id, label, value, active, onSelect }: FactButtonProps) => 
   >
     <span>{label}</span>
     <strong>{value}</strong>
-    <small><CircleDot size={11} /> View source</small>
+    <small><Circle size={11} /> View source</small>
   </button>
 );
 
@@ -52,14 +52,14 @@ export function IncidentWorkspace({ incident }: IncidentWorkspaceProps) {
             {formatIncidentStatus(incident.status)}
           </span>
           <span className="caller-chip" data-state={incident.callerConnection.toLowerCase()}>
-            <Radio size={12} /> Caller {incident.callerConnection.toLowerCase()}
+            <Broadcast size={12} /> Caller {incident.callerConnection.toLowerCase()}
           </span>
         </div>
       </header>
 
       {incident.status === "FAILED" && (
         <div className="failure-banner" role="alert">
-          <AlertOctagon size={19} />
+          <WarningOctagon size={19} />
           <div><strong>Dispatch failed</strong><span>{incident.failureReason ?? "The destination agency did not acknowledge this dispatch."}</span></div>
         </div>
       )}
@@ -87,7 +87,7 @@ export function IncidentWorkspace({ incident }: IncidentWorkspaceProps) {
         <section className="workspace-section map-section">
           <div className="section-heading compact"><div><span className="eyebrow">VERIFIED LOCATION</span><h2>Location</h2></div></div>
           <button className="address-source" type="button" onClick={() => setHighlightedFact("address")} aria-pressed={highlightedFact === "address"}>
-            <CircleDot size={12} /> Show address source
+            <Circle size={12} /> Show address source
           </button>
           <LocationMap
             address={incident.location.address}
@@ -120,10 +120,10 @@ export function WorkspaceLoading() {
 export function WorkspaceEmpty({ onRetry }: { onRetry?: () => void }) {
   return (
     <div className="workspace-empty">
-      <AlertOctagon size={26} />
+      <WarningOctagon size={26} />
       <strong>{onRetry ? "Incident unavailable" : "Select an incident"}</strong>
       <span>{onRetry ? "The incident detail could not be loaded." : "Use ↑ and ↓ to move through the queue, then press Enter."}</span>
-      {onRetry && <button type="button" className="button secondary" onClick={onRetry}><RefreshCw size={14} /> Retry</button>}
+      {onRetry && <button type="button" className="button secondary" onClick={onRetry}><ArrowsClockwise size={14} /> Retry</button>}
     </div>
   );
 }

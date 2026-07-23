@@ -1,4 +1,4 @@
-import { ListFilter, RefreshCw, Search } from "lucide-react";
+import { FunnelSimple, ArrowsClockwise, MagnifyingGlass } from "@phosphor-icons/react";
 import { useEffect, useRef, useState } from "react";
 import { sortIncidents } from "../../lib/incidentUtils";
 import type { Incident, Priority } from "../../lib/schemas";
@@ -81,7 +81,7 @@ export function IncidentQueue({
           <span className="eyebrow">JURISDICTION 04</span>
           <h1>Incidents</h1>
         </div>
-        <button className="icon-button" type="button" aria-label="Queue options"><ListFilter size={16} /></button>
+        <button className="icon-button" type="button" aria-label="Queue options"><FunnelSimple size={16} /></button>
       </div>
 
       <div className="queue-counts" aria-label="Filter incidents by severity">
@@ -101,7 +101,7 @@ export function IncidentQueue({
       </div>
 
       <label className="queue-search">
-        <Search size={14} aria-hidden="true" />
+        <MagnifyingGlass size={14} aria-hidden="true" />
         <span className="sr-only">Search incidents</span>
         <input
           ref={searchRef}
@@ -123,7 +123,7 @@ export function IncidentQueue({
           <div className="queue-error" role="alert">
             <strong>Queue unavailable</strong>
             <span>{error}</span>
-            <button type="button" className="button secondary" onClick={onRetry}><RefreshCw size={14} /> Retry</button>
+            <button type="button" className="button secondary" onClick={onRetry}><ArrowsClockwise size={14} /> Retry</button>
           </div>
         )}
         {!loading && !error && visibleIncidents.map((incident, index) => (

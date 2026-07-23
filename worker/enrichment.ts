@@ -126,7 +126,9 @@ export async function enqueueInitialEnrichment(
   incident: IncidentRecord,
   sos: SosRequest,
 ): Promise<void> {
-  const geoEnabled = await isGeoAnalysisEnabled(env, sos.jurisdictionId);
+  // Geo analysis needs the HAZARD_ANALYSIS container, which is remote-only and
+  // absent in local dev; skip straight to triage when it isn't bound.
+  const geoEnabled = Boolean(env.HAZARD_ANALYSIS) && (await isGeoAnalysisEnabled(env, sos.jurisdictionId));
   const message: GeoQueueMessage = {
     kind: "geo.assess",
     schemaVersion: 1,

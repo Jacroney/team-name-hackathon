@@ -1,5 +1,5 @@
 import * as Dialog from "@radix-ui/react-dialog";
-import { AlertTriangle, X } from "lucide-react";
+import { Warning, X } from "@phosphor-icons/react";
 import type { ReactElement } from "react";
 
 interface ConfirmDialogProps {
@@ -26,7 +26,7 @@ export function ConfirmDialog({
         <Dialog.Overlay className="dialog-overlay" />
         <Dialog.Content className="dialog-content">
           <div className="dialog-icon" data-intent={intent}>
-            <AlertTriangle size={20} aria-hidden="true" />
+            <Warning size={20} aria-hidden="true" />
           </div>
           <Dialog.Title>{title}</Dialog.Title>
           <Dialog.Description>{description}</Dialog.Description>

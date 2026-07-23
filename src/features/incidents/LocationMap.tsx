@@ -1,4 +1,4 @@
-import { Crosshair, MapPin } from "lucide-react";
+import { Crosshair, MapPin } from "@phosphor-icons/react";
 import { useEffect, useRef, useState } from "react";
 
 interface LocationMapProps {

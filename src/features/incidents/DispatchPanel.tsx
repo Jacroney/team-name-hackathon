@@ -1,22 +1,22 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
-  AlertTriangle,
+  Warning,
   ArrowRight,
-  BadgeCheck,
-  Building2,
-  CheckCircle2,
-  CircleHelp,
-  ClipboardPenLine,
-  Clock3,
+  SealCheck,
+  Buildings,
+  CheckCircle,
+  Question,
+  ClipboardText,
+  Clock,
   Copy,
-  LoaderCircle,
-  LockKeyhole,
-  RadioTower,
-  RefreshCw,
-  ShieldAlert,
+  CircleNotch,
+  LockKey,
+  CellTower,
+  ArrowsClockwise,
+  ShieldWarning,
   UserCheck,
   Users,
-} from "lucide-react";
+} from "@phosphor-icons/react";
 import { useEffect, useState } from "react";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
 import {
@@ -148,15 +148,15 @@ export function DispatchPanel({ incident }: { incident: Incident }) {
 
       {mutation.isPending && (
         <div className="acknowledgement-pending" role="status">
-          <LoaderCircle size={16} className="spin" />
+          <CircleNotch size={16} className="spin" />
           <div><strong>Awaiting server acknowledgement</strong><span>No status change has been applied yet.</span></div>
         </div>
       )}
-      {notice && <div className="action-notice" role="status"><CheckCircle2 size={16} /><span>{notice}</span></div>}
-      {error && <div className="action-error" role="alert"><AlertTriangle size={16} /><span>{error}</span></div>}
+      {notice && <div className="action-notice" role="status"><CheckCircle size={16} /><span>{notice}</span></div>}
+      {error && <div className="action-error" role="alert"><Warning size={16} /><span>{error}</span></div>}
       {conflict && (
         <div className="conflict-banner" role="alert">
-          <LockKeyhole size={17} />
+          <LockKey size={17} />
           <div><strong>Newer incident version available</strong><span>Your edits are based on version {baseVersion}. Dispatch is locked.</span></div>
           <button type="button" onClick={() => resetDraft(incident)}>Review v{incident.version}</button>
         </div>
@@ -169,11 +169,11 @@ export function DispatchPanel({ incident }: { incident: Incident }) {
 
       {incident.status === "FAILED" && (
         <section className="dispatch-failure" aria-label="Dispatch failure">
-          <div><ShieldAlert size={18} /><strong>Dispatch failed</strong></div>
+          <div><ShieldWarning size={18} /><strong>Dispatch failed</strong></div>
           <p>{incident.failureReason ?? "The agency endpoint returned an error."}</p>
           <div className="failure-actions">
             <ConfirmDialog
-              trigger={<button className="button danger" type="button" disabled={mutation.isPending}><RefreshCw size={14} /> Retry dispatch</button>}
+              trigger={<button className="button danger" type="button" disabled={mutation.isPending}><ArrowsClockwise size={14} /> Retry dispatch</button>}
               title="Retry this dispatch?"
               description={`Resend version ${baseVersion} to ${incident.destinationAgency}. The console will wait for a new acknowledgement.`}
               confirmLabel="Retry dispatch"
@@ -200,14 +200,14 @@ export function DispatchPanel({ incident }: { incident: Incident }) {
             Claim incident
           </button>
         )}
-        {claimedByOperator && <span className="you-hold-lock"><BadgeCheck size={14} /> You hold the lock</span>}
+        {claimedByOperator && <span className="you-hold-lock"><SealCheck size={14} /> You hold the lock</span>}
       </section>
 
       <div className="dispatch-scroll">
         <section className="panel-section">
           <div className="panel-section-heading">
             <div><span className="section-number">01</span><h2>Extracted fields</h2></div>
-            {dirty && <span className="unsaved-label"><ClipboardPenLine size={12} /> EDITED</span>}
+            {dirty && <span className="unsaved-label"><ClipboardText size={12} /> EDITED</span>}
           </div>
           <div className="dispatch-form">
             <label>
@@ -260,38 +260,38 @@ export function DispatchPanel({ incident }: { incident: Incident }) {
 
         <section className="panel-section recommendation-section">
           <div className="panel-section-heading"><div><span className="section-number">02</span><h2>Recommended route</h2></div></div>
-          <div className="route-agency"><Building2 size={16} /><div><span>DESTINATION</span><strong>{draft.destinationAgency || "Not selected"}</strong></div></div>
+          <div className="route-agency"><Buildings size={16} /><div><span>DESTINATION</span><strong>{draft.destinationAgency || "Not selected"}</strong></div></div>
           <div className="route-path">
             <span>Crisis Mesh</span><ArrowRight size={14} /><span>{incident.recommendation.agency}</span>
           </div>
           <div className="unit-list">
-            {incident.recommendation.units.map((unit) => <span key={unit}><RadioTower size={12} /> {unit}</span>)}
+            {incident.recommendation.units.map((unit) => <span key={unit}><CellTower size={12} /> {unit}</span>)}
           </div>
-          <div className="route-eta"><Clock3 size={14} /><strong>{incident.recommendation.etaMinutes} min</strong><span>estimated first-unit arrival</span></div>
+          <div className="route-eta"><Clock size={14} /><strong>{incident.recommendation.etaMinutes} min</strong><span>estimated first-unit arrival</span></div>
           <p>{incident.recommendation.rationale}</p>
         </section>
 
         <section className="panel-section missing-section">
           <div className="panel-section-heading"><div><span className="section-number">03</span><h2>Missing fields</h2></div><span className="section-count">{incident.missingFields.length}</span></div>
           {incident.missingFields.length > 0 ? (
-            <ul>{incident.missingFields.map((field) => <li key={field}><CircleHelp size={13} /> {field}</li>)}</ul>
-          ) : <div className="all-complete"><CheckCircle2 size={14} /> All critical fields complete</div>}
+            <ul>{incident.missingFields.map((field) => <li key={field}><Question size={13} /> {field}</li>)}</ul>
+          ) : <div className="all-complete"><CheckCircle size={14} /> All critical fields complete</div>}
         </section>
       </div>
 
       <footer className="dispatch-actions">
-        {!valid && <div className="validation-warning"><AlertTriangle size={13} /> Address, agency, and requested response are required.</div>}
-        {!claimedByOperator && !claimedByOther && <div className="lock-hint"><LockKeyhole size={12} /> Claim this incident to enable dispatch.</div>}
+        {!valid && <div className="validation-warning"><Warning size={13} /> Address, agency, and requested response are required.</div>}
+        {!claimedByOperator && !claimedByOther && <div className="lock-hint"><LockKey size={12} /> Claim this incident to enable dispatch.</div>}
         <div className="dispatch-primary-actions">
           <ConfirmDialog
-            trigger={<button className="button approve-button" type="button" disabled={dispatchDisabled || dirty}><BadgeCheck size={16} /> Approve and dispatch</button>}
+            trigger={<button className="button approve-button" type="button" disabled={dispatchDisabled || dirty}><SealCheck size={16} /> Approve and dispatch</button>}
             title="Confirm emergency dispatch"
             description={`Send ${draft.requestedResponse} to ${draft.destinationAgency}. This action uses incident version ${baseVersion}.`}
             confirmLabel="Approve and dispatch"
             onConfirm={() => mutation.mutate({ kind: "DISPATCH", draft })}
           />
           <ConfirmDialog
-            trigger={<button className="button edit-dispatch-button" type="button" disabled={dispatchDisabled || !dirty}><ClipboardPenLine size={15} /> Edit and dispatch</button>}
+            trigger={<button className="button edit-dispatch-button" type="button" disabled={dispatchDisabled || !dirty}><ClipboardText size={15} /> Edit and dispatch</button>}
             title="Confirm edited dispatch"
             description={`Dispatch your edited incident fields to ${draft.destinationAgency}. This action uses incident version ${baseVersion}.`}
             confirmLabel="Dispatch edited incident"
@@ -299,8 +299,8 @@ export function DispatchPanel({ incident }: { incident: Incident }) {
           />
         </div>
         <div className="dispatch-secondary-actions">
-          <button type="button" disabled={mutation.isPending || closed} onClick={() => mutation.mutate({ kind: "REQUEST_CLARIFICATION" })}><CircleHelp size={14} /> Request clarification</button>
-          <button type="button" disabled={mutation.isPending || closed} onClick={() => mutation.mutate({ kind: "ESCALATE" })}><ShieldAlert size={14} /> Escalate</button>
+          <button type="button" disabled={mutation.isPending || closed} onClick={() => mutation.mutate({ kind: "REQUEST_CLARIFICATION" })}><Question size={14} /> Request clarification</button>
+          <button type="button" disabled={mutation.isPending || closed} onClick={() => mutation.mutate({ kind: "ESCALATE" })}><ShieldWarning size={14} /> Escalate</button>
           <ConfirmDialog
             trigger={<button type="button" disabled={mutation.isPending || closed}><Copy size={14} /> Mark duplicate</button>}
             title="Mark as duplicate?"

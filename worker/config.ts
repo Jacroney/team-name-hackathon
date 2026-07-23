@@ -129,6 +129,36 @@ export async function getTriagePrompt(env: Env, version: string): Promise<string
   return prompt && prompt.length <= 8_000 ? prompt : DEFAULT_TRIAGE_PROMPT;
 }
 
+// Flagship bindings are `remote: true` and absent in local dev; these helpers
+// fall back to the provided default instead of throwing on a missing binding.
+async function flagString(
+  env: Env,
+  key: string,
+  fallback: string,
+  context: Record<string, string | number | boolean>,
+): Promise<string> {
+  if (!env.FLAGS) return fallback;
+  try {
+    return await env.FLAGS.getStringValue(key, fallback, context);
+  } catch {
+    return fallback;
+  }
+}
+
+async function flagBoolean(
+  env: Env,
+  key: string,
+  fallback: boolean,
+  context: Record<string, string | number | boolean>,
+): Promise<boolean> {
+  if (!env.FLAGS) return fallback;
+  try {
+    return await env.FLAGS.getBooleanValue(key, fallback, context);
+  } catch {
+    return fallback;
+  }
+}
+
 export async function getTriageConfig(
   env: Env,
   jurisdictionId: string,
@@ -146,31 +176,21 @@ export async function getTriageConfig(
   };
 
   const [model, promptVersion, priorityPolicyVersion] = await Promise.all([
-    env.FLAGS.getStringValue("triage-model", stored.model, context).catch(() => stored.model),
-    env.FLAGS.getStringValue("triage-prompt-version", stored.promptVersion, context).catch(
-      () => stored.promptVersion,
-    ),
-    env.FLAGS.getStringValue(
-      "priority-policy-version",
-      stored.priorityPolicyVersion,
-      context,
-    ).catch(() => stored.priorityPolicyVersion),
+    flagString(env, "triage-model", stored.model, context),
+    flagString(env, "triage-prompt-version", stored.promptVersion, context),
+    flagString(env, "priority-policy-version", stored.priorityPolicyVersion, context),
   ]);
 
   return triageConfigSchema.parse({ model, promptVersion, priorityPolicyVersion });
 }
 
 export async function isGeoAnalysisEnabled(env: Env, jurisdictionId: string): Promise<boolean> {
-  return env.FLAGS.getBooleanValue("geo-analysis-enabled", true, { jurisdictionId }).catch(
-    () => true,
-  );
+  return flagBoolean(env, "geo-analysis-enabled", true, { jurisdictionId });
 }
 
 export async function isDuplicateDetectionEnabled(
   env: Env,
   jurisdictionId: string,
 ): Promise<boolean> {
-  return env.FLAGS.getBooleanValue("duplicate-detection", false, { jurisdictionId }).catch(
-    () => false,
-  );
+  return flagBoolean(env, "duplicate-detection", false, { jurisdictionId });
 }

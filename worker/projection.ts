@@ -41,7 +41,8 @@ export async function recordAudit(
     )
       .bind(event.eventId, event.incidentId, event.jurisdictionId, event.type, event.occurredAt, JSON.stringify(event.payload))
       .run(),
-    env.AUDIT_EVENTS.send([event]),
+    // AUDIT_EVENTS (Pipelines) is remote-only and absent in local dev.
+    env.AUDIT_EVENTS ? env.AUDIT_EVENTS.send([event]) : Promise.resolve(),
   ]);
 }
 

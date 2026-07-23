@@ -1,4 +1,4 @@
-import { Languages, Radio } from "lucide-react";
+import { Translate, Broadcast } from "@phosphor-icons/react";
 import { useEffect, useRef } from "react";
 import type { TranscriptMessage } from "../../lib/schemas";
 
@@ -26,7 +26,7 @@ export function Transcript({ messages, highlightedFact }: TranscriptProps) {
     <section className="workspace-section transcript-section">
       <div className="section-heading">
         <div><span className="eyebrow">CALLER SESSION</span><h2>Live transcript</h2></div>
-        <span className="live-indicator"><Radio size={12} /> LIVE</span>
+        <span className="live-indicator"><Broadcast size={12} /> LIVE</span>
       </div>
       <div className="transcript-log" aria-live="polite">
         {messages.map((message) => {
@@ -49,7 +49,7 @@ export function Transcript({ messages, highlightedFact }: TranscriptProps) {
                 <div className="translation-block">
                   <div className="translated-copy"><span>EN</span><p>{message.translated}</p></div>
                   <div className="original-copy">
-                    <span><Languages size={12} /> {message.language ?? "Original"}</span>
+                    <span><Translate size={12} /> {message.language ?? "Original"}</span>
                     <p>{message.original}</p>
                   </div>
                 </div>

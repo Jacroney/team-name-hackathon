@@ -1,4 +1,4 @@
-import { Globe2, MessageSquare, Phone, Radio, TriangleAlert, UserRound } from "lucide-react";
+import { GlobeHemisphereWest, ChatText, Phone, Broadcast, Warning, User } from "@phosphor-icons/react";
 import type { Ref } from "react";
 import { PriorityBadge } from "../../components/PriorityBadge";
 import { formatElapsed, formatIncidentStatus } from "../../lib/incidentUtils";
@@ -15,8 +15,8 @@ interface IncidentRowProps {
 
 const ChannelIcon = ({ channel }: { channel: Incident["channel"] }) => {
   if (channel === "PHONE") return <Phone size={12} aria-hidden="true" />;
-  if (channel === "SMS") return <MessageSquare size={12} aria-hidden="true" />;
-  return <Globe2 size={12} aria-hidden="true" />;
+  if (channel === "SMS") return <ChatText size={12} aria-hidden="true" />;
+  return <GlobeHemisphereWest size={12} aria-hidden="true" />;
 };
 
 export function IncidentRow({
@@ -49,19 +49,19 @@ export function IncidentRow({
       <span className="incident-meta">
         <span className="channel-label"><ChannelIcon channel={incident.channel} /> {incident.channel}</span>
         <span className="caller-state" data-state={incident.callerConnection.toLowerCase()}>
-          <Radio size={11} aria-hidden="true" /> {incident.callerConnection.toLowerCase()}
+          <Broadcast size={11} aria-hidden="true" /> {incident.callerConnection.toLowerCase()}
         </span>
         {incident.status === "FAILED" && (
-          <span className="row-failure"><TriangleAlert size={12} /> Dispatch failed</span>
+          <span className="row-failure"><Warning size={12} /> Dispatch failed</span>
         )}
       </span>
       <span className="incident-row-footer">
         <span className="missing-info" data-clear={incident.missingFields.length === 0 || undefined}>
           {incident.missingFields.length > 0
-            ? <><TriangleAlert size={12} /> Missing: {incident.missingFields[0]}</>
+            ? <><Warning size={12} /> Missing: {incident.missingFields[0]}</>
             : <>Critical fields complete</>}
         </span>
-        {incident.claimedBy && <span className="claimed-by"><UserRound size={12} /> {incident.claimedBy}</span>}
+        {incident.claimedBy && <span className="claimed-by"><User size={12} /> {incident.claimedBy}</span>}
         {!incident.claimedBy && <span className="status-text">{formatIncidentStatus(incident.status)}</span>}
       </span>
     </button>

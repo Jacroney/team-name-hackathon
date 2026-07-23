@@ -1,10 +1,10 @@
-import { Camera, FileText, Headphones, Play, Video } from "lucide-react";
+import { Camera, FileText, Headphones, Play, VideoCamera } from "@phosphor-icons/react";
 import type { Evidence } from "../../lib/schemas";
 
 const EvidenceIcon = ({ type }: { type: Evidence["type"] }) => {
   if (type === "PHOTO") return <Camera size={19} />;
   if (type === "AUDIO") return <Headphones size={19} />;
-  if (type === "VIDEO") return <Video size={19} />;
+  if (type === "VIDEO") return <VideoCamera size={19} />;
   return <FileText size={19} />;
 };
 

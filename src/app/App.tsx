@@ -1,7 +1,6 @@
 import { Button } from "@cloudflare/kumo/components/button";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeftIcon } from "@phosphor-icons/react";
-import { WifiOff } from "lucide-react";
+import { ArrowLeftIcon, WifiSlash } from "@phosphor-icons/react";
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { AppShell } from "../components/AppShell";
@@ -143,32 +142,7 @@ export function App() {
     else setMapSelectedId(id);
   };
 
-  const reportBody = detailQuery.isLoading ? (
-    <WorkspaceLoading />
-  ) : detailQuery.isError || !incident ? (
-    <WorkspaceEmpty onRetry={() => void detailQuery.refetch()} />
-  ) : (
-    <>
-      <div className="report-toolbar">
-        <Button variant="ghost" size="sm" icon={ArrowLeftIcon} onClick={backToMap}>
-          Back to map
-        </Button>
-      </div>
-      {feedWarning && (
-        <div className="feed-warning" role="alert">
-          <WifiOff size={15} />
-          {connectionStatus === "stale"
-            ? "Live updates are stale. Verify incident version before acting."
-            : "Live connection lost. Reconnecting; API actions remain version-checked."}
-        </div>
-      )}
-      <IncidentWorkspace incident={incident} />
-    </>
-  );
-
-  const workspace = reportOpen ? (
-    reportBody
-  ) : (
+  const map = (
     <RegionMap
       incidents={incidents}
       selectedId={selectedId}
@@ -177,31 +151,65 @@ export function App() {
     />
   );
 
-  const decision = reportOpen ? (
-    incident ? <DispatchPanel incident={incident} /> : <WorkspaceEmpty />
-  ) : (
-    <SelectedIncidentPanel incident={selectedIncident} onOpenReport={openReport} />
+  const left = (
+    <IncidentQueue
+      incidents={incidents}
+      selectedId={selectedId}
+      updatedIds={updatedIds}
+      loading={incidentsQuery.isLoading}
+      error={incidentsQuery.error instanceof Error ? incidentsQuery.error.message : undefined}
+      onSelect={handleQueueSelect}
+      onRetry={() => void incidentsQuery.refetch()}
+    />
   );
+
+  let right: React.ReactNode;
+  if (reportOpen) {
+    right = (
+      <div className="report-sheet">
+        <div className="report-toolbar">
+          <Button variant="ghost" size="sm" icon={ArrowLeftIcon} onClick={backToMap}>
+            Back to map
+          </Button>
+        </div>
+        {feedWarning && (
+          <div className="feed-warning" role="alert">
+            <WifiSlash size={15} />
+            {connectionStatus === "stale"
+              ? "Live updates are stale. Verify incident version before acting."
+              : "Live connection lost. Reconnecting; API actions remain version-checked."}
+          </div>
+        )}
+        {detailQuery.isLoading ? (
+          <WorkspaceLoading />
+        ) : detailQuery.isError || !incident ? (
+          <WorkspaceEmpty onRetry={() => void detailQuery.refetch()} />
+        ) : (
+          <div className="report-sheet-body">
+            <div className="report-sheet-main">
+              <IncidentWorkspace incident={incident} />
+            </div>
+            <div className="report-sheet-side">
+              <DispatchPanel incident={incident} />
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  } else if (selectedIncident) {
+    right = <SelectedIncidentPanel incident={selectedIncident} onOpenReport={openReport} />;
+  } else {
+    right = null;
+  }
 
   return (
     <AppShell
-      selected={reportOpen}
+      map={map}
+      left={left}
+      right={right}
+      wide={reportOpen}
       activeCount={activeCount}
       connectionStatus={connectionStatus}
-      onMobileBack={() => void navigate("/incidents")}
-      queue={
-        <IncidentQueue
-          incidents={incidents}
-          selectedId={selectedId}
-          updatedIds={updatedIds}
-          loading={incidentsQuery.isLoading}
-          error={incidentsQuery.error instanceof Error ? incidentsQuery.error.message : undefined}
-          onSelect={handleQueueSelect}
-          onRetry={() => void incidentsQuery.refetch()}
-        />
-      }
-      workspace={workspace}
-      decision={decision}
     />
   );
 }
