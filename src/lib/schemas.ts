@@ -7,9 +7,11 @@ export const incidentStatusSchema = z.enum([
   "INTAKE",
   "NEEDS_REVIEW",
   "CLAIMED",
+  "ACKNOWLEDGED",
   "APPROVED",
   "DISPATCHING",
   "DISPATCHED",
+  "RESOLVED",
   "FAILED",
   "CLOSED",
 ]);

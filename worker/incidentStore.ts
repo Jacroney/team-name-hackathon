@@ -37,7 +37,9 @@ export type IncidentAction =
   | "REQUEST_CLARIFICATION"
   | "ESCALATE"
   | "MARK_DUPLICATE"
-  | "RETRY_DISPATCH";
+  | "RETRY_DISPATCH"
+  | "ACKNOWLEDGE"
+  | "RESOLVE";
 
 interface IncidentRow {
   [key: string]: SqlStorageValue;
@@ -424,14 +426,16 @@ export class IncidentStore extends DurableObject<Env> {
       ESCALATE: "Escalated to duty supervisor",
       MARK_DUPLICATE: "Marked incident as duplicate",
       RETRY_DISPATCH: "Dispatch retried successfully",
+      ACKNOWLEDGE: "Acknowledged — responder en route",
+      RESOLVE: "Resolved on scene",
     };
 
     return this.mutate(jurisdictionId, id, expectedVersion, (incident) => {
       if (incident.claimedBy !== operator) {
         return { error: { code: 403, message: "Claim this incident before changing it" } };
       }
-      if (incident.status === "CLOSED") {
-        return { error: { code: 409, message: "This incident is already closed" } };
+      if (incident.status === "CLOSED" || incident.status === "RESOLVED") {
+        return { error: { code: 409, message: "This incident is already resolved" } };
       }
       return {
         patch: {
@@ -440,7 +444,11 @@ export class IncidentStore extends DurableObject<Env> {
               ? "CLOSED"
               : action === "RETRY_DISPATCH"
                 ? "DISPATCHED"
-                : incident.status,
+                : action === "ACKNOWLEDGE"
+                  ? "ACKNOWLEDGED"
+                  : action === "RESOLVE"
+                    ? "RESOLVED"
+                    : incident.status,
           priority: action === "ESCALATE" ? "CRITICAL" : incident.priority,
           failureReason: action === "RETRY_DISPATCH" ? undefined : incident.failureReason,
           activity: appendActivity(incident.activity, operator, labels[action]),

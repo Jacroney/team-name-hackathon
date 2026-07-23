@@ -14,7 +14,14 @@ const dispatchRequestSchema = versionRequestSchema
   .strict();
 const actionRequestSchema = versionRequestSchema
   .extend({
-    action: z.enum(["REQUEST_CLARIFICATION", "ESCALATE", "MARK_DUPLICATE", "RETRY_DISPATCH"]),
+    action: z.enum([
+      "REQUEST_CLARIFICATION",
+      "ESCALATE",
+      "MARK_DUPLICATE",
+      "RETRY_DISPATCH",
+      "ACKNOWLEDGE",
+      "RESOLVE",
+    ]),
   })
   .strict();
 

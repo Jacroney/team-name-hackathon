@@ -181,7 +181,13 @@ export const dispatchIncident = async ({
   );
 };
 
-export type IncidentAction = "REQUEST_CLARIFICATION" | "ESCALATE" | "MARK_DUPLICATE" | "RETRY_DISPATCH";
+export type IncidentAction =
+  | "REQUEST_CLARIFICATION"
+  | "ESCALATE"
+  | "MARK_DUPLICATE"
+  | "RETRY_DISPATCH"
+  | "ACKNOWLEDGE"
+  | "RESOLVE";
 
 export const performIncidentAction = async (
   id: string,
@@ -201,6 +207,8 @@ export const performIncidentAction = async (
       ESCALATE: "Escalated to duty supervisor",
       MARK_DUPLICATE: "Marked incident as duplicate",
       RETRY_DISPATCH: "Dispatch retried successfully",
+      ACKNOWLEDGE: "Acknowledged — responder en route",
+      RESOLVE: "Resolved on scene",
     };
 
     return {
@@ -210,7 +218,11 @@ export const performIncidentAction = async (
           ? "CLOSED"
           : action === "RETRY_DISPATCH"
             ? "DISPATCHED"
-            : incident.status,
+            : action === "ACKNOWLEDGE"
+              ? "ACKNOWLEDGED"
+              : action === "RESOLVE"
+                ? "RESOLVED"
+                : incident.status,
       priority: action === "ESCALATE" ? "CRITICAL" : incident.priority,
       failureReason: action === "RETRY_DISPATCH" ? undefined : incident.failureReason,
       activity: [

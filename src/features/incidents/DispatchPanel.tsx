@@ -61,6 +61,8 @@ const successLabels: Record<PanelAction["kind"], string> = {
   ESCALATE: "Incident escalated to the duty supervisor.",
   MARK_DUPLICATE: "Incident closed as a duplicate.",
   RETRY_DISPATCH: "Dispatch retry acknowledged by the destination agency.",
+  ACKNOWLEDGE: "Acknowledged — responder marked en route.",
+  RESOLVE: "Incident resolved on scene.",
 };
 
 export function DispatchPanel({ incident }: { incident: Incident }) {

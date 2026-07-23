@@ -587,6 +587,19 @@ button:disabled { cursor: not-allowed; opacity: .42; }
 .map-side-sec { display: block; margin-bottom: 10px; color: var(--muted); font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; }
 .map-side-resource { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; font-size: 13px; }
 .map-side-resource + .map-side-resource { border-top: 1px solid var(--line); }
+.map-side-lifecycle { flex: 0 0 auto; padding: 13px 16px; border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 10px; }
+.lifecycle-status { display: flex; align-items: center; justify-content: space-between; font-size: 11px; }
+.lifecycle-status span { color: var(--muted); font-weight: 600; letter-spacing: .06em; text-transform: uppercase; }
+.lifecycle-status strong { color: var(--text-soft); font: 500 12px "IBM Plex Mono", monospace; }
+.lifecycle-status strong[data-resolved] { color: var(--routine); }
+.lifecycle-steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.lifecycle-btn { display: flex; align-items: center; justify-content: center; gap: 6px; padding: 9px 6px; border: 1px solid var(--glass-line, var(--line)); border-radius: 9px; background: var(--glass, rgba(255,255,255,.03)); color: var(--text-soft); font-size: 12px; font-weight: 600; cursor: pointer; transition: border-color .15s, background .15s, color .15s; }
+.lifecycle-btn:hover:not(:disabled) { border-color: var(--routine); color: #fff; }
+.lifecycle-btn:disabled { cursor: default; opacity: .55; }
+.lifecycle-btn[data-done] { border-color: color-mix(in srgb, var(--routine) 55%, transparent); color: var(--routine); opacity: 1; background: color-mix(in srgb, var(--routine) 12%, transparent); }
+.lifecycle-resolve:hover:not(:disabled) { border-color: var(--routine); }
+.lifecycle-note { display: flex; align-items: center; gap: 6px; margin: 0; font-size: 11px; color: var(--muted); }
+.lifecycle-error { color: var(--urgent); }
 .map-side-cta { flex: 0 0 auto; padding: 14px 16px; border-top: 1px solid var(--line); }
 .map-side-cta button { width: 100%; }
 .map-side-empty { display: flex; height: 100%; align-items: center; justify-content: center; flex-direction: column; gap: 9px; padding: 24px; color: var(--muted); text-align: center; }

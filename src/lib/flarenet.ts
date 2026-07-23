@@ -3,7 +3,21 @@ import type { Incident, ProvenanceFact } from "./schemas";
 
 export type FlarePriority = "p1" | "p2" | "res";
 
-const RESOLVED_STATUSES: ReadonlySet<Incident["status"]> = new Set(["CLOSED"]);
+const RESOLVED_STATUSES: ReadonlySet<Incident["status"]> = new Set(["CLOSED", "RESOLVED"]);
+
+/** Human labels for the incident lifecycle status. */
+export const statusLabel: Record<Incident["status"], string> = {
+  INTAKE: "Intake",
+  NEEDS_REVIEW: "Needs review",
+  CLAIMED: "Assigned",
+  ACKNOWLEDGED: "Acknowledged",
+  APPROVED: "Approved",
+  DISPATCHING: "Dispatching",
+  DISPATCHED: "Dispatched",
+  RESOLVED: "Resolved",
+  FAILED: "Failed",
+  CLOSED: "Closed",
+};
 
 /** Collapse the console priority/status model into the mockup's P1 / P2 / Resolved buckets. */
 export const flarePriority = (incident: Incident): FlarePriority => {
